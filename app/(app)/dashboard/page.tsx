@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { AlertTriangle, CalendarClock, Database, FolderGit2, Star, TrendingUp } from "lucide-react";
 
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
