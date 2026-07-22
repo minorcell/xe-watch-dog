@@ -21,8 +21,9 @@ export async function GET(request: NextRequest) {
   const page = Math.max(1, parseInt(request.nextUrl.searchParams.get("page") ?? "1", 10));
   const pageSize = Math.min(100, Math.max(1, parseInt(request.nextUrl.searchParams.get("pageSize") ?? "20", 10)));
   const total = all.length;
+  const monitoredCount = all.filter((r) => r.monitoringEnabled).length;
   const items = all.slice((page - 1) * pageSize, page * pageSize);
-  return NextResponse.json({ items, total, page, pageSize });
+  return NextResponse.json({ items, total, monitoredCount, page, pageSize });
 }
 
 // POST { action: "sync" }  → trigger GitHub org sync

@@ -11,6 +11,7 @@ import type { Repo } from "@/lib/database";
 export function MonitoringPanel() {
   const [repos, setRepos] = useState<Repo[]>([]);
   const [total, setTotal] = useState(0);
+  const [monitoredCount, setMonitoredCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
@@ -25,6 +26,7 @@ export function MonitoringPanel() {
       const data = await res.json();
       setRepos(data.items ?? data);
       setTotal(data.total ?? (data.items ? data.items.length : data.length));
+      setMonitoredCount(data.monitoredCount ?? 0);
     }
     setLoading(false);
   }, [page, pageSize]);
@@ -50,7 +52,7 @@ export function MonitoringPanel() {
     setSyncMsg(res.ok ? `新增 ${data.added}，更新 ${data.updated}` : (data.message ?? "同步失败"));
     if (res.ok) {
       const r = await fetch(`/api/admin/repos?page=1&pageSize=${pageSize}`);
-      if (r.ok) { const d = await r.json(); setRepos(d.items ?? d); setTotal(d.total ?? (d.items ? d.items.length : d.length)); }
+      if (r.ok) { const d = await r.json(); setRepos(d.items ?? d); setTotal(d.total ?? (d.items ? d.items.length : d.length)); setMonitoredCount(d.monitoredCount ?? 0); }
     }
     setSyncing(false);
   }
@@ -78,6 +80,9 @@ export function MonitoringPanel() {
       <div className="flex items-center justify-between mb-4">
         <p className="text-xs text-muted-foreground">
           从 GitHub 同步仓库列表，开启监控后纳入 Star 采集
+          <span className="mx-1.5 text-border">|</span>
+          共 {total} 个仓库
+          <span className="ml-1 text-emerald-600 dark:text-emerald-500 font-medium">{monitoredCount} 个监控中</span>
         </p>
         <button type="button" onClick={syncRepos} disabled={syncing} className="inline-flex h-7 items-center gap-1.5 rounded-md bg-foreground px-2.5 text-[11px] font-medium text-background hover:bg-foreground/90 disabled:opacity-40">
           {syncing ? <LoaderCircle className="size-3 animate-spin" /> : <RefreshCw className="size-3" />}从 GitHub 刷新
