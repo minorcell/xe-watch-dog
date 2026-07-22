@@ -3,8 +3,7 @@ import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { getSession } from "@/lib/auth";
 
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
   if (!(await getSession())) redirect("/login");
-
   return <DashboardShell>{children}</DashboardShell>;
 }
