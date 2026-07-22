@@ -15,7 +15,6 @@ export function MonitoringPanel() {
   const [deleteTarget, setDeleteTarget] = useState<{ githubRepo: string } | null>(null);
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
     const res = await fetch("/api/admin/repos");
     if (res.ok) setRepos(await res.json());
     setLoading(false);
@@ -24,12 +23,13 @@ export function MonitoringPanel() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   async function toggleMonitor(githubRepo: string, current: boolean) {
+    // Optimistic update
+    setRepos((prev) => prev.map((r) => r.githubRepo === githubRepo ? { ...r, monitoringEnabled: !current } : r));
     await fetch("/api/admin/repos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: current ? "unmonitor" : "monitor", githubRepo }),
     });
-    await fetchData();
   }
 
   async function syncRepos() {
@@ -45,7 +45,7 @@ export function MonitoringPanel() {
     if (!deleteTarget) return;
     await fetch("/api/admin/repos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "unmonitor", githubRepo: deleteTarget.githubRepo }) });
     setDeleteTarget(null);
-    await fetchData();
+    setRepos((prev) => prev.filter((r) => r.githubRepo !== deleteTarget.githubRepo));
   }
 
   if (loading) {
