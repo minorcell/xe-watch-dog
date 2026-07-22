@@ -54,6 +54,41 @@ GITHUB_ORG=            # 监控的 GitHub 组织名
 
 Vercel Cron 会每天自动执行一次调度任务（`vercel.json` 中配置）。
 
+## 自托管
+
+在任意 Linux 服务器上运行。需要 Node 22+、pnpm、Postgres 16+。
+
+```bash
+pnpm install
+pnpm build
+pnpm start   # 默认端口 3000
+```
+
+Cron 替代方案：用系统 `crontab` 定时请求 `/api/cron/stars`：
+
+```
+0 1 * * * curl -s -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/stars
+```
+
+## Docker
+
+```bash
+# 1. 配置环境变量
+cp .env.docker .env.docker.local
+# 编辑 .env.docker.local 填入 AUTH_SECRET, ADMIN_PASSWORD_HASH, GITHUB_TOKEN, GITHUB_ORG, CRON_SECRET
+
+# 2. 启动
+docker compose up -d
+
+# 3. 初始化数据库
+docker compose exec app node -e "require('./server.js')" # schema auto-created on first request
+# 或者手动：docker compose exec db psql -U watchdog -f database/001_schema.sql
+```
+
+访问 `http://localhost:3000`。
+
+Cron 任务：在宿主机 crontab 中配置 curl 请求，或使用 [ofelia](https://github.com/mcuadros/ofelia) 等 Docker 调度器。
+
 ## 本地开发
 
 ```bash
