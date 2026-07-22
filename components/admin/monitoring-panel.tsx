@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Pagination } from "@/components/ui/pagination";
 import { RepoDetailModal } from "@/components/stars/repo-detail-modal";
 import { Switch } from "@/components/ui/switch";
+import { usePageLoadHandle } from "@/components/layout/page-transition-context";
 import type { Repo } from "@/lib/database";
 
 function timeAgo(date: string | null) {
@@ -35,7 +36,10 @@ export function MonitoringPanel() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
+  const { startLoad, endLoad } = usePageLoadHandle();
+
   const fetchData = useCallback(async () => {
+    startLoad();
     const res = await fetch(`/api/admin/repos?page=${page}&pageSize=${pageSize}`);
     if (res.ok) {
       const data = await res.json();
@@ -47,7 +51,8 @@ export function MonitoringPanel() {
       if (syncedAt) setLastSyncAt(syncedAt);
     }
     setLoading(false);
-  }, [page, pageSize]);
+    endLoad();
+  }, [page, pageSize, startLoad, endLoad]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

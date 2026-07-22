@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Clock, LoaderCircle } from "lucide-react";
 
+import { usePageLoadHandle } from "@/components/layout/page-transition-context";
 import { Switch } from "@/components/ui/switch";
 import type { SchedulerTask } from "@/lib/database";
 
@@ -22,7 +23,10 @@ export function SchedulerPanel() {
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState<Set<string>>(new Set());
 
+  const { startLoad, endLoad } = usePageLoadHandle();
+
   const fetchData = useCallback(async () => {
+    startLoad();
     const [tRes, lRes] = await Promise.all([
       fetch("/api/admin/scheduler"),
       fetch("/api/admin/scheduler/last-run"),
@@ -30,7 +34,8 @@ export function SchedulerPanel() {
     if (tRes.ok) setTasks(await tRes.json());
     if (lRes.ok) setLastRun(await lRes.json());
     setLoading(false);
-  }, []);
+    endLoad();
+  }, [startLoad, endLoad]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

@@ -5,7 +5,7 @@ import { getLastRun } from "@/lib/scheduler-tasks";
 
 export async function GET() {
   if (!(await getSession())) return NextResponse.json({ message: "未登录" }, { status: 401 });
-  const record = getLastRun();
+  const record = await getLastRun();
   // Include deployment mode indicator
   return NextResponse.json(record ? { ...record, mode: process.env.VERCEL ? "vercel" : "self-hosted" } : null);
 }

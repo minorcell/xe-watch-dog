@@ -12,6 +12,10 @@ import {
   YAxis,
 } from "recharts";
 
+function shortName(full: string) {
+  return full.includes("/") ? full.split("/").slice(1).join("/") : full;
+}
+
 const palette = [
   "var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)",
   "#7c3aed", "#db2777", "#ea580c", "#0891b2", "#65a30d",
@@ -93,7 +97,7 @@ export function StarChart({
                   transform: isHovered && !isHidden ? "scale(1.3)" : "scale(1)",
                 }}
               />
-              <span className={isHidden ? "line-through" : ""}>{repository}</span>
+              <span className={isHidden ? "line-through" : ""}>{shortName(repository)}</span>
             </button>
           );
         })}
@@ -146,7 +150,7 @@ export function StarChart({
                   key={repository}
                   type="monotone"
                   dataKey={repository}
-                  name={repository}
+                  name={shortName(repository)}
                   stroke={palette[colorIndex]}
                   strokeWidth={isHovered ? 2.5 : 1.5}
                   dot={false}

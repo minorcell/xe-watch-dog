@@ -5,7 +5,6 @@ import { DashboardClient } from "@/components/dashboard/dashboard-client";
 import { StatTiles } from "@/components/dashboard/stat-tiles";
 import { RefreshButton } from "@/components/stars/refresh-button";
 import { RangeSelector } from "@/components/stars/range-selector";
-import { ToastProvider } from "@/components/ui/toast";
 import { formatSnapshotDate, resolveDateRange } from "@/lib/date-range";
 import { getStarDashboardData } from "@/lib/stars";
 
@@ -51,8 +50,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const hasGrowthData = data.leaderboard.some((repository) => repository.growth !== null);
 
   return (
-    <ToastProvider>
-      <div className="mx-auto w-full max-w-6xl">
+    <div className="mx-auto w-full max-w-6xl">
         {/* Header */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -133,7 +131,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           leaderboard={data.leaderboard}
           rangeLabel={range.label}
         />
-      </div>
-    </ToastProvider>
+    </div>
   );
 }

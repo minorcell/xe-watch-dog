@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LoaderCircle, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -10,6 +10,11 @@ export function RefreshButton({ disabled }: { disabled: boolean }) {
   const router = useRouter();
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
 
   async function refresh() {
     setIsPending(true);
@@ -33,7 +38,7 @@ export function RefreshButton({ disabled }: { disabled: boolean }) {
     } catch {
       toast("无法连接采集服务", "error");
     } finally {
-      setIsPending(false);
+      if (mountedRef.current) setIsPending(false);
     }
   }
 
