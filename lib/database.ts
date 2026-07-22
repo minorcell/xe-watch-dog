@@ -208,6 +208,14 @@ export async function ensureOrganizationSchema() {
     )
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS scheduler_runs (
+      id BIGSERIAL PRIMARY KEY,
+      ran_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      results JSONB NOT NULL
+    )
+  `;
+
   // Seed tasks
   await sql`
     INSERT INTO scheduler_tasks (name, enabled, description) VALUES

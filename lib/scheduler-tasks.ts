@@ -2,7 +2,7 @@ import { getGitHubEnv } from "@/lib/env";
 import { fetchOrgRepos, fetchRepoMetadata } from "@/lib/github";
 import { bulkUpsertOrgRepos, getEnabledTaskNames, getMonitoredRepos, syncRepoMetadata } from "@/lib/database";
 import { collectStarSnapshots } from "@/lib/stars";
-import type { ScheduledTask } from "@/lib/scheduler";
+import type { ScheduledTask, TaskResult } from "@/lib/scheduler";
 
 /** Build the task list from enabled tasks in the database. */
 export async function buildSchedulerTasks(): Promise<ScheduledTask[]> {
@@ -50,19 +50,31 @@ export async function buildSchedulerTasks(): Promise<ScheduledTask[]> {
   return tasks;
 }
 
-import type { TaskResult } from "@/lib/scheduler";
+// ── Persisted run records ────────────────────────────────────
 
-export type SchedulerRunRecord = {
-  tasks: TaskResult[];
-  ranAt: string;
-};
-
-let lastRun: SchedulerRunRecord | null = null;
-
-export function recordRun(record: SchedulerRunRecord) {
-  lastRun = record;
+export async function recordRun(results: TaskResult[]) {
+  const { neon } = await import("@neondatabase/serverless");
+  const { getDatabaseUrl } = await import("@/lib/env");
+  const url = getDatabaseUrl();
+  if (!url) return;
+  const sql = neon(url);
+  await sql`INSERT INTO scheduler_runs (ran_at, results) VALUES (NOW(), ${JSON.stringify(results)}::jsonb)`;
 }
 
-export function getLastRun(): SchedulerRunRecord | null {
-  return lastRun;
+export async function getLastRun() {
+  const { neon } = await import("@neondatabase/serverless");
+  const { getDatabaseUrl } = await import("@/lib/env");
+  const url = getDatabaseUrl();
+  if (!url) return null;
+  const sql = neon(url);
+  const [row] = await sql`SELECT ran_at AS "ranAt", results FROM scheduler_runs ORDER BY ran_at DESC LIMIT 1`;
+  if (!row) return null;
+  return {
+    ranAt: row.ranAt as string,
+    tasks: (row.results as TaskResult[]).map((t) => ({
+      task: t.task,
+      ok: t.ok,
+      message: t.message,
+    })),
+  };
 }

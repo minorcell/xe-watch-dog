@@ -17,7 +17,7 @@ export function startInternalScheduler() {
     console.log("[scheduler] Running...");
     const tasks = await buildSchedulerTasks();
     const results = await runScheduler(tasks);
-    recordRun({ tasks: results, ranAt: new Date().toISOString() });
+    recordRun(results);
     console.log("[scheduler] Done.", JSON.stringify(results));
   });
 }
