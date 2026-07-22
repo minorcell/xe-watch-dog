@@ -201,13 +201,3 @@ export async function fetchRepoMetadata(owner: string, repo: string): Promise<Re
   };
 }
 
-// ── Team members ──────────────────────────────────────────────
-
-export async function fetchTeamMembers(org: string, teamSlug: string): Promise<string[]> {
-  const url = `https://api.github.com/orgs/${encodeURIComponent(org)}/teams/${encodeURIComponent(teamSlug)}/members?per_page=100`;
-  const response = await fetch(url, { headers: githubHeaders() });
-  if (!response.ok) return [];
-
-  const data = await response.json() as Array<{ login: string }>;
-  return data.map((m) => m.login);
-}

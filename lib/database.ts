@@ -213,8 +213,7 @@ export async function ensureOrganizationSchema() {
     INSERT INTO scheduler_tasks (name, enabled, description) VALUES
       ('sync-org-repos', true, '从 GitHub 同步组织下全量仓库列表'),
       ('sync-repo-metadata', true, '同步监控中仓库的详细元信息'),
-      ('collect-star-snapshots', true, '采集监控中仓库的 Star 快照'),
-      ('sync-team-members', false, '同步监控中仓库的 Team 成员（暂未启用）')
+      ('collect-star-snapshots', true, '采集监控中仓库的 Star 快照')
     ON CONFLICT (name) DO NOTHING
   `;
 }

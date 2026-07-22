@@ -52,9 +52,6 @@ export async function GET(request: Request) {
     });
   }
 
-  // sync-team-members: disabled by default, no-op since members table removed
-  // Task name kept for scheduler_tasks seed consistency; does nothing
-
   const results = await runScheduler(allTasks);
   const hasFailure = results.some((r) => !r.ok);
   console.log("[cron]", JSON.stringify(results));
