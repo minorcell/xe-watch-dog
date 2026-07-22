@@ -1,25 +1,19 @@
-import { NextResponse } from "next/server";
-
-import { getCronSecret, getGitHubEnv } from "@/lib/env";
+import { getGitHubEnv } from "@/lib/env";
 import { fetchOrgRepos, fetchRepoMetadata } from "@/lib/github";
-import { collectStarSnapshots } from "@/lib/stars";
 import { bulkUpsertOrgRepos, getEnabledTaskNames, getMonitoredRepos, syncRepoMetadata } from "@/lib/database";
-import { runScheduler, type ScheduledTask } from "@/lib/scheduler";
+import { collectStarSnapshots } from "@/lib/stars";
+import type { ScheduledTask } from "@/lib/scheduler";
 
-export async function GET(request: Request) {
-  const secret = getCronSecret();
-  if (!secret) return NextResponse.json({ message: "CRON_SECRET 未配置" }, { status: 503 });
-  if (request.headers.get("authorization") !== `Bearer ${secret}`) {
-    return NextResponse.json({ message: "未授权" }, { status: 401 });
-  }
-
+/** Build the task list from enabled tasks in the database. */
+export async function buildSchedulerTasks(): Promise<ScheduledTask[]> {
   const enabledTasks = await getEnabledTaskNames();
   const org = getGitHubEnv().GITHUB_ORG;
-  if (!org) return NextResponse.json({ message: "GITHUB_ORG 未配置" }, { status: 500 });
-  const allTasks: ScheduledTask[] = [];
+  if (!org) throw new Error("GITHUB_ORG 未配置");
+
+  const tasks: ScheduledTask[] = [];
 
   if (enabledTasks.includes("sync-org-repos")) {
-    allTasks.push({
+    tasks.push({
       name: "sync-org-repos",
       run: async () => {
         const repos = await fetchOrgRepos(org);
@@ -30,7 +24,7 @@ export async function GET(request: Request) {
   }
 
   if (enabledTasks.includes("sync-repo-metadata")) {
-    allTasks.push({
+    tasks.push({
       name: "sync-repo-metadata",
       run: async () => {
         const repos = await getMonitoredRepos();
@@ -44,7 +38,7 @@ export async function GET(request: Request) {
   }
 
   if (enabledTasks.includes("collect-star-snapshots")) {
-    allTasks.push({
+    tasks.push({
       name: "collect-star-snapshots",
       run: async () => {
         const result = await collectStarSnapshots();
@@ -53,8 +47,22 @@ export async function GET(request: Request) {
     });
   }
 
-  const results = await runScheduler(allTasks);
-  const hasFailure = results.some((r) => !r.ok);
-  console.log("[cron]", JSON.stringify(results));
-  return NextResponse.json({ tasks: results }, { status: hasFailure ? 500 : 200 });
+  return tasks;
+}
+
+import type { TaskResult } from "@/lib/scheduler";
+
+export type SchedulerRunRecord = {
+  tasks: TaskResult[];
+  ranAt: string;
+};
+
+let lastRun: SchedulerRunRecord | null = null;
+
+export function recordRun(record: SchedulerRunRecord) {
+  lastRun = record;
+}
+
+export function getLastRun(): SchedulerRunRecord | null {
+  return lastRun;
 }
