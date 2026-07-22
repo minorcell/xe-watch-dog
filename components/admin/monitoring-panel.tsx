@@ -12,6 +12,7 @@ export function MonitoringPanel() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
+  const [toggling, setToggling] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<{ githubRepo: string } | null>(null);
 
   const fetchData = useCallback(async () => {
@@ -23,13 +24,14 @@ export function MonitoringPanel() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   async function toggleMonitor(githubRepo: string, current: boolean) {
-    // Optimistic update
-    setRepos((prev) => prev.map((r) => r.githubRepo === githubRepo ? { ...r, monitoringEnabled: !current } : r));
+    setToggling((prev) => new Set(prev).add(githubRepo));
     await fetch("/api/admin/repos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: current ? "unmonitor" : "monitor", githubRepo }),
     });
+    setRepos((prev) => prev.map((r) => r.githubRepo === githubRepo ? { ...r, monitoringEnabled: !current } : r));
+    setToggling((prev) => { const next = new Set(prev); next.delete(githubRepo); return next; });
   }
 
   async function syncRepos() {
@@ -89,7 +91,7 @@ export function MonitoringPanel() {
                   <td className="h-10 px-3 text-[11px] text-muted-foreground">{r.language ?? "-"}</td>
                   <td className="h-10 px-3 text-center">
                     <div className="flex justify-center">
-                      <Switch checked={r.monitoringEnabled} onCheckedChange={() => toggleMonitor(r.githubRepo, r.monitoringEnabled)} aria-label={`监控 ${r.githubRepo}`} size="default" />
+                      <Switch checked={r.monitoringEnabled} loading={toggling.has(r.githubRepo)} onCheckedChange={() => toggleMonitor(r.githubRepo, r.monitoringEnabled)} aria-label={`监控 ${r.githubRepo}`} size="default" />
                     </div>
                   </td>
                   <td className="h-10 px-3 last:pr-4">

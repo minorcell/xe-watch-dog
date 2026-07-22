@@ -9,6 +9,7 @@ import type { SchedulerTask } from "@/lib/database";
 export function SchedulerPanel() {
   const [tasks, setTasks] = useState<SchedulerTask[]>([]);
   const [loading, setLoading] = useState(true);
+  const [toggling, setToggling] = useState<Set<string>>(new Set());
 
   const fetchData = useCallback(async () => {
     const res = await fetch("/api/admin/scheduler");
@@ -19,13 +20,14 @@ export function SchedulerPanel() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   async function toggle(name: string, current: boolean) {
-    // Optimistic update
-    setTasks((prev) => prev.map((t) => t.name === name ? { ...t, enabled: !current } : t));
+    setToggling((prev) => new Set(prev).add(name));
     await fetch("/api/admin/scheduler", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, enabled: !current }),
     });
+    setTasks((prev) => prev.map((t) => t.name === name ? { ...t, enabled: !current } : t));
+    setToggling((prev) => { const next = new Set(prev); next.delete(name); return next; });
   }
 
   if (loading) {
@@ -42,7 +44,7 @@ export function SchedulerPanel() {
                 <p className="text-xs font-medium font-mono">{t.name}</p>
                 <p className="mt-1 text-[11px] text-muted-foreground">{t.description}</p>
               </div>
-              <Switch checked={t.enabled} onCheckedChange={() => toggle(t.name, t.enabled)} aria-label={t.description} size="default" />
+              <Switch checked={t.enabled} loading={toggling.has(t.name)} onCheckedChange={() => toggle(t.name, t.enabled)} aria-label={t.description} size="default" />
             </div>
           ))}
         </div>
