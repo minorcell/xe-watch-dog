@@ -1,11 +1,19 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 
-import { RepoDetailModal } from "@/components/stars/repo-detail-modal";
-import { StarChart } from "@/components/stars/star-chart";
 import { StarTable } from "@/components/stars/star-table";
 import type { StarDashboardData } from "@/lib/stars";
+
+const StarChart = dynamic(() => import("@/components/stars/star-chart").then((m) => ({ default: m.StarChart })), {
+  ssr: false,
+  loading: () => <div className="h-72 grid place-items-center"><div className="size-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" /></div>,
+});
+
+const RepoDetailModal = dynamic(() => import("@/components/stars/repo-detail-modal").then((m) => ({ default: m.RepoDetailModal })), {
+  ssr: false,
+});
 
 const MAX_CHART_SERIES = 5;
 
@@ -69,7 +77,7 @@ export function DashboardClient({
           <div>
             <h2 className="text-sm font-semibold">仓库排行榜</h2>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              当前 Star、周期增长与仓库状态 · 点击仓库查看详情
+              当前 Star、周期增长与仓库状态 · 点击行查看详情
             </p>
           </div>
         </div>
@@ -84,11 +92,13 @@ export function DashboardClient({
         />
       </section>
 
-      <RepoDetailModal
-        repoFullName={selectedRepo}
-        open={selectedRepo !== null}
-        onClose={() => setSelectedRepo(null)}
-      />
+      {selectedRepo && (
+        <RepoDetailModal
+          repoFullName={selectedRepo}
+          open={true}
+          onClose={() => setSelectedRepo(null)}
+        />
+      )}
     </>
   );
 }

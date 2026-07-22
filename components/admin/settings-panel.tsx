@@ -1,10 +1,16 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import { Monitor, Timer } from "lucide-react";
 
-import { MonitoringPanel } from "@/components/admin/monitoring-panel";
-import { SchedulerPanel } from "@/components/admin/scheduler-panel";
+const MonitoringPanel = dynamic(() => import("@/components/admin/monitoring-panel").then((m) => ({ default: m.MonitoringPanel })), {
+  loading: () => <div className="py-16 flex justify-center"><div className="size-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" /></div>,
+});
+
+const SchedulerPanel = dynamic(() => import("@/components/admin/scheduler-panel").then((m) => ({ default: m.SchedulerPanel })), {
+  loading: () => <div className="py-16 flex justify-center"><div className="size-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" /></div>,
+});
 
 type Tab = "monitoring" | "scheduler";
 
