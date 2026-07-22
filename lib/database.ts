@@ -183,15 +183,6 @@ export async function ensureOrganizationSchema() {
   const sql = getSql();
   if (!sql) throw new Error("DATABASE_URL 尚未配置");
 
-  // Drop old schemas to avoid column name conflicts
-  await sql`DROP TABLE IF EXISTS repo_members CASCADE`;
-  await sql`DROP TABLE IF EXISTS repos CASCADE`;
-  await sql`DROP TABLE IF EXISTS people CASCADE`;
-  await sql`DROP TABLE IF EXISTS org_group_members CASCADE`;
-  await sql`DROP TABLE IF EXISTS org_groups CASCADE`;
-  await sql`DROP TABLE IF EXISTS org_people CASCADE`;
-  await sql`DROP TABLE IF EXISTS org_projects CASCADE`;
-
   await sql`
     CREATE TABLE IF NOT EXISTS people (
       github_id TEXT PRIMARY KEY,

@@ -1,6 +1,7 @@
 /**
- * One-time import: info.yaml → Neon DB
+ * One-time import: app/data/info.yaml → Neon DB
  * Usage: pnpm db:import
+ * Requires DATABASE_URL in .env.local
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -27,11 +28,6 @@ async function main() {
   const sql = await getSql();
   console.log(`🔌 Importing ${yaml.groups.length} groups...`);
 
-  // Ensure tables
-  await sql`CREATE TABLE IF NOT EXISTS people (github_id TEXT PRIMARY KEY, real_name TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
-  await sql`CREATE TABLE IF NOT EXISTS repos (github_repo TEXT PRIMARY KEY, monitoring_enabled BOOLEAN NOT NULL DEFAULT false, description TEXT, homepage_url TEXT, topics TEXT[] DEFAULT '{}', language TEXT, visibility TEXT NOT NULL DEFAULT 'unknown', archived BOOLEAN NOT NULL DEFAULT false, synced_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
-  await sql`CREATE TABLE IF NOT EXISTS repo_members (github_repo TEXT NOT NULL REFERENCES repos(github_repo) ON DELETE CASCADE, github_id TEXT NOT NULL REFERENCES people(github_id) ON DELETE CASCADE, role TEXT NOT NULL CHECK (role IN ('mentor','assistant','lead','member')), PRIMARY KEY (github_repo, github_id))`;
-
   let reposCount = 0, peopleCount = 0;
 
   for (const g of yaml.groups) {
@@ -46,8 +42,12 @@ async function main() {
     const ensure = async (name, githubId) => {
       if (!githubId) return;
       const [e] = await sql`SELECT github_id FROM people WHERE github_id = ${githubId}`;
-      if (e.length > 0) await sql`UPDATE people SET real_name = ${name} WHERE github_id = ${githubId}`;
-      else { await sql`INSERT INTO people (github_id, real_name) VALUES (${githubId}, ${name})`; peopleCount++; }
+      if (e) {
+        await sql`UPDATE people SET real_name = ${name} WHERE github_id = ${githubId}`;
+      } else {
+        await sql`INSERT INTO people (github_id, real_name) VALUES (${githubId}, ${name})`;
+        peopleCount++;
+      }
     };
 
     await ensure(g.mentor.name, g.mentor.id);
