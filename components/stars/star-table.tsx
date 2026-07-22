@@ -10,7 +10,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, Info, Search } from "lucide-react";
 
 import { ExportButton } from "@/components/stars/export-button";
 import type { StarLeaderboardRow } from "@/lib/stars";
@@ -97,23 +97,25 @@ export function StarTable({
         header: "仓库",
         cell: ({ row }) => (
           <div className="min-w-48">
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                className="text-xs font-medium hover:text-primary text-left cursor-pointer"
-                onClick={() => onRepoClick?.(row.original.fullName)}
-              >
-                {row.original.fullName}
-              </button>
+            <div className="flex items-center gap-1.5">
               <Link
                 href={row.original.url}
                 target="_blank"
                 rel="noreferrer"
-                className="text-muted-foreground hover:text-foreground"
-                onClick={(e) => e.stopPropagation()}
+                className="text-xs font-medium hover:text-primary"
               >
-                <ExternalLink className="size-3" />
+                {row.original.fullName}
               </Link>
+              {onRepoClick && (
+                <button
+                  type="button"
+                  onClick={() => onRepoClick?.(row.original.fullName)}
+                  className="grid size-5 place-items-center rounded text-muted-foreground/60 hover:text-foreground"
+                  title="查看详情"
+                >
+                  <Info className="size-3" />
+                </button>
+              )}
             </div>
             <p className="mt-0.5 max-w-72 truncate text-[11px] text-muted-foreground">
               {row.original.topic}

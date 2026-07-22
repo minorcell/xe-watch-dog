@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-import { RepoDetailDrawer } from "@/components/stars/repo-detail-drawer";
+import { RepoDetailModal } from "@/components/stars/repo-detail-modal";
 import { StarChart } from "@/components/stars/star-chart";
 import { StarTable } from "@/components/stars/star-table";
 import type { StarDashboardData } from "@/lib/stars";
@@ -84,8 +84,7 @@ export function DashboardClient({
         />
       </section>
 
-      {/* Repo detail drawer */}
-      <RepoDetailDrawer
+      <RepoDetailModal
         repoFullName={selectedRepo}
         open={selectedRepo !== null}
         onClose={() => setSelectedRepo(null)}

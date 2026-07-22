@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { LoaderCircle, RefreshCw, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { ExternalLink, LoaderCircle, RefreshCw, Trash2 } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Pagination } from "@/components/ui/pagination";
@@ -106,7 +107,11 @@ export function MonitoringPanel() {
                 <tr><td colSpan={5} className="h-24 text-center text-xs text-muted-foreground">暂无仓库，点击"从 GitHub 刷新"</td></tr>
               ) : sorted.map((r) => (
                 <tr key={r.githubRepo} className={`border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors ${!r.monitoringEnabled ? "opacity-50" : ""}`}>
-                  <td className="h-10 px-3 text-xs font-mono font-medium first:pl-4">{r.githubRepo}</td>
+                  <td className="h-10 px-3 text-xs font-mono font-medium first:pl-4">
+                    <Link href={`https://github.com/${r.githubRepo}`} target="_blank" rel="noreferrer" className="hover:text-primary inline-flex items-center gap-1">
+                      {r.githubRepo.split("/")[1]}<ExternalLink className="size-3 text-muted-foreground" />
+                    </Link>
+                  </td>
                   <td className="h-10 px-3 text-xs text-muted-foreground max-w-72 truncate">{r.description ?? "-"}</td>
                   <td className="h-10 px-3 text-[11px] text-muted-foreground">{r.language ?? "-"}</td>
                   <td className="h-10 px-3 text-center">
