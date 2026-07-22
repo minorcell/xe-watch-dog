@@ -84,7 +84,7 @@ export default function HomePage() {
               进入看板 <ArrowRight className="size-4" />
             </button>
             <Link
-              href="https://github.com/minorcell/xe-watch-dog"
+              href="https://github.com/minorcell/org-watch-dog"
               target="_blank"
               rel="noreferrer"
               className="inline-flex h-10 items-center gap-2 rounded-lg border px-5 text-sm font-medium transition-colors hover:bg-accent"
