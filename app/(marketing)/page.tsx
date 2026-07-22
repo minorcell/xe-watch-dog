@@ -1,52 +1,88 @@
-import Link from "next/link";
-import { ArrowRight, BarChart3, GitBranch, Globe, LineChart, RefreshCw, Star } from "lucide-react";
+"use client";
 
+import { useState } from "react";
+import Link from "next/link";
+import { ArrowRight, GitBranch, Globe, LineChart, Star } from "lucide-react";
+import { motion } from "motion/react";
+
+import { LoginModal } from "@/components/auth/login-modal";
 import { Logo } from "@/components/layout/logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 
+const fadeIn = { initial: { opacity: 0, y: 24 }, animate: { opacity: 1, y: 0 } };
+const fadeInSlow = { initial: { opacity: 0, y: 24 }, animate: { opacity: 1, y: 0, transition: { duration: 0.7, ease: "easeOut" as const } } };
+
 export default function HomePage() {
+  const [loginOpen, setLoginOpen] = useState(false);
+
   return (
-    <div className="min-h-dvh bg-background text-foreground">
+    <div className="h-dvh overflow-hidden bg-background text-foreground">
       {/* Nav */}
-      <header className="flex h-14 items-center justify-between px-6">
+      <motion.header
+        className="flex h-14 items-center justify-between px-6"
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+      >
         <div className="flex items-center gap-2.5">
-          <Logo className="size-7" />
+          <Logo className="size-6" />
           <span className="text-sm font-semibold tracking-tight">Watchdog</span>
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <Link href="/login" className="inline-flex h-8 items-center rounded-md bg-foreground px-3 text-xs font-medium text-background hover:bg-foreground/90">
+          <button
+            type="button"
+            onClick={() => setLoginOpen(true)}
+            className="inline-flex h-8 items-center rounded-md bg-foreground px-3 text-xs font-medium text-background hover:bg-foreground/90"
+          >
             登录
-          </Link>
+          </button>
         </div>
-      </header>
+      </motion.header>
 
       {/* Hero */}
-      <section className="relative flex flex-col items-center justify-center px-4 pb-32 pt-20 text-center">
-        {/* Subtle gradient background */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--primary)_0%,transparent_70%)] opacity-[0.03] dark:opacity-[0.06]" />
+      <section
+        className="relative flex flex-col items-center justify-center px-4 text-center"
+        style={{ height: "calc(100dvh - 3.5rem)" }}
+      >
+        {/* Background gradient */}
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--primary)_0%,transparent_70%)] opacity-[0.04] dark:opacity-[0.07]" />
 
-        <div className="relative z-10 max-w-2xl">
-          <Logo className="mx-auto mb-8 size-20" />
+        <div className="relative z-10 max-w-lg">
+          <motion.div {...fadeInSlow}>
+            <Logo className="mx-auto mb-10 size-24" />
+          </motion.div>
 
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
+          <motion.h1
+            {...fadeIn}
+            transition={{ delay: 0.15, duration: 0.6, ease: "easeOut" }}
+            className="text-4xl font-bold tracking-tight sm:text-5xl"
+          >
             用数据
             <span className="text-primary">看懂</span>
             你的组织
-          </h1>
+          </motion.h1>
 
-          <p className="mx-auto mt-6 max-w-lg text-[15px] leading-relaxed text-muted-foreground">
+          <motion.p
+            {...fadeIn}
+            transition={{ delay: 0.25, duration: 0.6, ease: "easeOut" }}
+            className="mx-auto mt-6 max-w-md text-[15px] leading-relaxed text-muted-foreground"
+          >
             从 GitHub 拉取仓库数据、追踪 Star 趋势、分析团队指标。
-            为实训营和组织管理者打造的轻量数据平台。
-          </p>
+          </motion.p>
 
-          <div className="mt-10 flex items-center justify-center gap-3">
-            <Link
-              href="/login"
+          <motion.div
+            {...fadeIn}
+            transition={{ delay: 0.35, duration: 0.6, ease: "easeOut" }}
+            className="mt-10 flex items-center justify-center gap-3"
+          >
+            <button
+              type="button"
+              onClick={() => setLoginOpen(true)}
               className="inline-flex h-10 items-center gap-2 rounded-lg bg-foreground px-5 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
             >
               进入看板 <ArrowRight className="size-4" />
-            </Link>
+            </button>
             <Link
               href="https://github.com/minorcell/xe-watch-dog"
               target="_blank"
@@ -56,53 +92,32 @@ export default function HomePage() {
               <GitBranch className="size-4" />
               GitHub
             </Link>
-          </div>
+          </motion.div>
+        </div>
+
+        {/* Feature cards */}
+        <div className="relative z-10 mt-20 grid max-w-2xl gap-4 sm:grid-cols-3">
+          {[
+            { icon: Star, title: "Star 趋势", desc: "自动采集，可视化图表与分析" },
+            { icon: Globe, title: "仓库管理", desc: "实时同步组织仓库列表" },
+            { icon: LineChart, title: "调度引擎", desc: "可扩展的任务队列系统" },
+          ].map((f, i) => (
+            <motion.div
+              key={f.title}
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.45 + i * 0.1, duration: 0.5, ease: "easeOut" }}
+              className="rounded-xl border bg-card/50 px-5 py-4 text-left backdrop-blur-sm"
+            >
+              <f.icon className="mb-2 size-4 text-muted-foreground" />
+              <h3 className="text-xs font-semibold">{f.title}</h3>
+              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{f.desc}</p>
+            </motion.div>
+          ))}
         </div>
       </section>
 
-      {/* Features */}
-      <section className="mx-auto max-w-5xl px-6 pb-32">
-        <div className="grid gap-6 sm:grid-cols-3">
-          <FeatureCard
-            icon={Star}
-            title="Star 趋势监控"
-            description="自动采集每日 Star 数据，可视化趋势图表与排行榜，支持 CSV 导出。"
-          />
-          <FeatureCard
-            icon={Globe}
-            title="仓库管理"
-            description="实时同步组织仓库列表，一键开关监控，按需追踪关键项目。"
-          />
-          <FeatureCard
-            icon={LineChart}
-            title="调度引擎"
-            description="可扩展的定时任务队列，元信息同步与快照采集独立控制。"
-          />
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t px-6 py-8 text-center text-xs text-muted-foreground">
-        <p>Watchdog · 面向 GitHub 组织的数据平台</p>
-      </footer>
-    </div>
-  );
-}
-
-function FeatureCard({
-  icon: Icon,
-  title,
-  description,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="rounded-lg border bg-card p-6">
-      <Icon className="mb-3 size-5 text-muted-foreground" />
-      <h3 className="text-sm font-semibold">{title}</h3>
-      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{description}</p>
+      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
     </div>
   );
 }
