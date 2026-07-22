@@ -11,7 +11,7 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const metadata: Metadata = {
   title: { default: "Watchdog", template: "%s | Watchdog" },
-  description: "1024XEngineer GitHub 仓库观察看板",
+  description: "面向 GitHub 组织的数据分析与实训管理平台",
   icons: { icon: "/favicon.svg" },
 };
 

@@ -89,7 +89,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-12 shrink-0 items-center border-b border-border bg-background px-6">
-          <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">1024XEngineer</p>
         </header>
         <main className="min-h-0 flex-1 overflow-y-auto px-6 py-6">{children}</main>
       </div>

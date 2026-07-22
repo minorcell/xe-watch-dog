@@ -35,7 +35,8 @@ export async function POST(request: NextRequest) {
   const { action, githubRepo } = body;
 
   if (action === "sync") {
-    const org = getGitHubEnv().GITHUB_ORG ?? "1024XEngineer";
+    const org = getGitHubEnv().GITHUB_ORG;
+    if (!org) return NextResponse.json({ message: "GITHUB_ORG 未配置" }, { status: 500 });
     const repos = await fetchOrgRepos(org);
     const result = await bulkUpsertOrgRepos(repos);
     return NextResponse.json({ message: `新增 ${result.added}，更新 ${result.updated}`, ...result });

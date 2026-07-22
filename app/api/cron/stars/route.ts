@@ -14,7 +14,8 @@ export async function GET(request: Request) {
   }
 
   const enabledTasks = await getEnabledTaskNames();
-  const org = getGitHubEnv().GITHUB_ORG ?? "1024XEngineer";
+  const org = getGitHubEnv().GITHUB_ORG;
+  if (!org) return NextResponse.json({ message: "GITHUB_ORG 未配置" }, { status: 500 });
   const allTasks: ScheduledTask[] = [];
 
   if (enabledTasks.includes("sync-org-repos")) {

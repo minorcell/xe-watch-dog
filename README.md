@@ -38,7 +38,7 @@ DATABASE_URL=postgres://...  # Neon 连接字符串
 CRON_SECRET=           # Cron 端点 Bearer 密钥，至少 24 字符
 
 # 可选
-GITHUB_ORG=            # 监控的 GitHub 组织名，默认 1024XEngineer
+GITHUB_ORG=            # 监控的 GitHub 组织名
 ```
 
 ### 3. 部署到 Vercel

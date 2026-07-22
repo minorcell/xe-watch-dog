@@ -24,7 +24,6 @@ export default async function LoginPage() {
             <Logo className="size-8" />
             <div>
               <p className="text-sm font-semibold leading-tight tracking-tight">Watchdog</p>
-              <p className="text-[11px] text-muted-foreground">1024XEngineer</p>
             </div>
           </div>
           <ThemeToggle />
