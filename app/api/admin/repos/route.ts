@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getGitHubEnv } from "@/lib/env";
 import { fetchOrgRepos } from "@/lib/github";
-import { disableMonitoring, enableMonitoring, getRepoDetail, listRepos, bulkUpsertOrgRepos } from "@/lib/database";
+import { disableMonitoring, enableMonitoring, listRepos, bulkUpsertOrgRepos } from "@/lib/database";
 
 // GET ?detail=xxx  → single repo detail
 // GET             → all repos (from DB)
@@ -11,7 +11,8 @@ export async function GET(request: NextRequest) {
   if (!(await getSession())) return NextResponse.json({ message: "未登录" }, { status: 401 });
   const detail = request.nextUrl.searchParams.get("detail");
   if (detail) {
-    const repo = await getRepoDetail(detail);
+    const repos = await listRepos();
+    const repo = repos.find((r) => r.githubRepo === detail);
     if (!repo) return NextResponse.json({ message: "仓库不存在" }, { status: 404 });
     return NextResponse.json(repo);
   }

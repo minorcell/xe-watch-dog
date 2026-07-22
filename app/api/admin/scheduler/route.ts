@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getSession } from "@/lib/auth";
-import { ensureSchedulerTasks, listSchedulerTasks, setSchedulerTask } from "@/lib/database";
+import { listSchedulerTasks, setSchedulerTask } from "@/lib/database";
 
 export async function GET() {
   if (!(await getSession())) return NextResponse.json({ message: "未登录" }, { status: 401 });
-  await ensureSchedulerTasks();
   const tasks = await listSchedulerTasks();
   return NextResponse.json(tasks);
 }
