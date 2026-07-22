@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Building2, ChevronLeft, ChevronRight, Monitor, Settings, Star, Timer } from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight, Settings, Star } from "lucide-react";
 
 import { LogoutButton } from "@/components/auth/logout-button";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -32,7 +32,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
 
-  // Placeholder while hydrating
   if (!mounted) {
     return (
       <div className="flex h-dvh min-h-dvh overflow-hidden">
@@ -47,47 +46,31 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-dvh min-h-dvh overflow-hidden">
-      {/* ── Sidebar ── */}
-      <aside
-        className={cn(
-          "flex shrink-0 flex-col border-r border-border bg-sidebar transition-[width] duration-200",
-          collapsed ? "w-12" : "w-52",
-        )}
-      >
+      <aside className={cn("flex shrink-0 flex-col border-r border-border bg-sidebar transition-[width] duration-200", collapsed ? "w-12" : "w-52")}>
         {/* Brand */}
         {collapsed ? (
           <div className="flex h-12 shrink-0 items-center justify-center">
-            <span className="grid size-6 place-items-center rounded-md bg-foreground text-background">
-              <Activity className="size-3.5" />
-            </span>
+            <span className="grid size-6 place-items-center rounded-md bg-foreground text-background"><Activity className="size-3.5" /></span>
           </div>
         ) : (
           <div className="flex h-12 shrink-0 items-center gap-2.5 px-4">
-            <span className="grid size-6 place-items-center rounded-md bg-foreground text-background">
-              <Activity className="size-3.5" />
-            </span>
+            <span className="grid size-6 place-items-center rounded-md bg-foreground text-background"><Activity className="size-3.5" /></span>
             <span className="text-sm font-semibold tracking-tight">Watchdog</span>
           </div>
         )}
 
-        {/* Nav — Business */}
-        <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-4" aria-label="主导航">
-          {/* Business section */}
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+          {/* Workpace */}
           <div>
             {!collapsed && <p className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-muted">Workpace</p>}
-            <div className="space-y-0.5">
-              <NavItem href="/dashboard" active={isActive("/dashboard") && !isActive("/dashboard/admin")} collapsed={collapsed} icon={Star} label="Star 看板" />
-              <NavItem href="/dashboard/admin/monitoring" active={isActive("/dashboard/admin/monitoring")} collapsed={collapsed} icon={Building2} label="组织管理" />
-            </div>
+            <NavItem href="/dashboard" active={isActive("/dashboard") && !isActive("/dashboard/admin")} collapsed={collapsed} icon={Star} label="Star 看板" />
           </div>
 
-          {/* System section */}
+          {/* System */}
           <div>
             {!collapsed && <p className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-muted">System</p>}
-            <div className="space-y-0.5">
-              <NavItem href="/dashboard/admin/scheduler" active={isActive("/dashboard/admin/scheduler")} collapsed={collapsed} icon={Timer} label="调度任务" />
-              <NavItem href="/dashboard/admin/monitoring" active={isActive("/dashboard/admin/monitoring")} collapsed={collapsed} icon={Monitor} label="监控仓库" />
-            </div>
+            <NavItem href="/dashboard/admin" active={isActive("/dashboard/admin")} collapsed={collapsed} icon={Settings} label="系统设置" />
           </div>
         </nav>
 
@@ -101,9 +84,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* ── Main ── */}
+      {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-background px-6">
+        <header className="flex h-12 shrink-0 items-center border-b border-border bg-background px-6">
           <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">1024XEngineer</p>
         </header>
         <main className="min-h-0 flex-1 overflow-y-auto px-6 py-6">{children}</main>

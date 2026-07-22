@@ -1,5 +1,8 @@
-import { redirect } from "next/navigation";
+import type { Metadata } from "next";
+import { SettingsPanel } from "@/components/admin/settings-panel";
+
+export const metadata: Metadata = { title: "系统设置" };
 
 export default function AdminPage() {
-  redirect("/dashboard/admin/monitoring");
+  return <SettingsPanel />;
 }
