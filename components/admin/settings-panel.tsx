@@ -17,7 +17,7 @@ export function SettingsPanel() {
   const [tab, setTab] = useState<Tab>("monitoring");
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div>
       <div className="mb-6">
         <h1 className="text-lg font-semibold tracking-tight">系统设置</h1>
         <p className="mt-0.5 text-xs text-muted-foreground">监控仓库、调度任务与人员管理</p>
