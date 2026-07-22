@@ -10,15 +10,30 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://org-watch-dog.vercel.app"),
+  metadataBase: new URL("https://watchdog.mcell.top"),
   title: { default: "Watchdog", template: "%s | Watchdog" },
   description:
-    "面向 GitHub 组织的数据分析与实训管理平台 — 从 GitHub 拉取仓库数据、追踪 Star 趋势、分析团队指标。",
+    "面向 GitHub 组织的数据分析平台。帮助管理者从 GitHub 拉取仓库数据、分析团队指标。",
   icons: { icon: "/favicon.svg" },
   openGraph: {
     title: "Watchdog — GitHub 组织数据分析平台",
     description: "Star 趋势监控 · 仓库管理 · 调度引擎",
+    url: "https://watchdog.mcell.top",
     type: "website",
+    images: [
+      {
+        url: "/api/og",
+        width: 1200,
+        height: 630,
+        alt: "Watchdog — GitHub 组织数据分析平台",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Watchdog — GitHub 组织数据分析平台",
+    description: "Star 趋势监控 · 仓库管理 · 调度引擎",
+    images: ["/api/og"],
   },
   robots: { index: true, follow: true },
 };
