@@ -11,6 +11,7 @@ import { getStarDashboardData } from "@/lib/stars";
 
 export const metadata: Metadata = {
   title: "Star 看板",
+  description: "GitHub 仓库 Star 趋势图表、排行榜与快照管理",
 };
 
 type DashboardPageProps = {
