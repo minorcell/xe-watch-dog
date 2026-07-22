@@ -19,6 +19,7 @@ export const metadata: Metadata = {
     title: "Watchdog — GitHub 组织数据分析平台",
     description: "Star 趋势监控 · 仓库管理 · 调度引擎",
     url: "https://watchdog.mcell.top",
+    siteName: "Watchdog",
     type: "website",
     images: [
       {
