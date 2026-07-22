@@ -58,7 +58,6 @@ export async function getStarDashboardData(range: DateRange) {
 
   const chartRepositories = leaderboard
     .filter((repository) => repository.stars !== null)
-    .slice(0, 5)
     .map((repository) => repository.fullName);
 
   const chartTimestamps = [...new Set(snapshots.map((snapshot) => snapshot.capturedAt))];
