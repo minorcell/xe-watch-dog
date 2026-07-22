@@ -56,6 +56,7 @@ export function StarTable({
   onQueryChange,
   visibility,
   onVisibilityChange,
+  onRepoClick,
 }: {
   data: StarLeaderboardRow[];
   range: string;
@@ -63,6 +64,7 @@ export function StarTable({
   onQueryChange: (v: string) => void;
   visibility: string;
   onVisibilityChange: (v: string) => void;
+  onRepoClick?: (fullName: string) => void;
 }) {
   const [sorting, setSorting] = useState<SortingState>([{ id: "stars", desc: true }]);
 
@@ -95,15 +97,24 @@ export function StarTable({
         header: "仓库",
         cell: ({ row }) => (
           <div className="min-w-48">
-            <Link
-              href={row.original.url}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 text-xs font-medium hover:text-primary"
-            >
-              {row.original.fullName}
-              <ExternalLink className="size-3 text-muted-foreground" />
-            </Link>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                className="text-xs font-medium hover:text-primary text-left cursor-pointer"
+                onClick={() => onRepoClick?.(row.original.fullName)}
+              >
+                {row.original.fullName}
+              </button>
+              <Link
+                href={row.original.url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-muted-foreground hover:text-foreground"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <ExternalLink className="size-3" />
+              </Link>
+            </div>
             <p className="mt-0.5 max-w-72 truncate text-[11px] text-muted-foreground">
               {row.original.topic}
             </p>

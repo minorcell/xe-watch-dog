@@ -1,7 +1,9 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import {
   CartesianGrid,
+  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -36,11 +38,21 @@ export function StarChart({
   visibleRepositories,
 }: {
   data: ChartPoint[];
-  /** All repositories that exist in chart data */
   repositories: string[];
-  /** Subset of repositories to actually render (e.g. top 5 from filtered table) */
   visibleRepositories: string[];
 }) {
+  const [hiddenRepos, setHiddenRepos] = useState<Set<string>>(new Set());
+  const [hoveredRepo, setHoveredRepo] = useState<string | null>(null);
+
+  const toggleRepo = useCallback((repo: string) => {
+    setHiddenRepos((prev) => {
+      const next = new Set(prev);
+      if (next.has(repo)) next.delete(repo);
+      else next.add(repo);
+      return next;
+    });
+  }, []);
+
   if (data.length === 0 || visibleRepositories.length === 0) {
     return (
       <div className="grid h-72 place-items-center text-center">
@@ -54,22 +66,41 @@ export function StarChart({
     );
   }
 
-  // Only render repos that exist in both `repositories` and `visibleRepositories`
   const activeRepos = visibleRepositories.filter((r) => repositories.includes(r));
+  const renderedRepos = activeRepos.filter((r) => !hiddenRepos.has(r));
 
   return (
     <div className="grid gap-3">
-      <div className="flex flex-wrap gap-x-4 gap-y-1.5 px-1 text-[11px] text-muted-foreground">
-        {activeRepos.map((repository, index) => (
-          <span key={repository} className="inline-flex items-center gap-1.5">
-            <i
-              className="size-2 rounded-full"
-              style={{ backgroundColor: lineColors[index % lineColors.length] }}
-            />
-            {repository}
-          </span>
-        ))}
+      {/* Interactive legend */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5 px-1 text-[11px]">
+        {activeRepos.map((repository, index) => {
+          const isHidden = hiddenRepos.has(repository);
+          const isHovered = hoveredRepo === repository;
+          return (
+            <button
+              key={repository}
+              type="button"
+              onClick={() => toggleRepo(repository)}
+              onMouseEnter={() => setHoveredRepo(repository)}
+              onMouseLeave={() => setHoveredRepo(null)}
+              className={`inline-flex items-center gap-1.5 rounded px-1 py-0.5 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+                isHidden ? "opacity-30 line-through" : ""
+              } ${isHovered && !isHidden ? "font-medium" : ""}`}
+            >
+              <i
+                className="size-2 shrink-0 rounded-full transition-transform"
+                style={{
+                  backgroundColor: lineColors[index % lineColors.length],
+                  transform: isHovered && !isHidden ? "scale(1.3)" : "scale(1)",
+                }}
+              />
+              <span className={isHidden ? "line-through" : ""}>{repository}</span>
+            </button>
+          );
+        })}
       </div>
+
+      {/* Chart */}
       <div className="h-72 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
@@ -77,6 +108,7 @@ export function StarChart({
             margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
             accessibilityLayer
             title="仓库 Star 数量趋势"
+            onMouseLeave={() => setHoveredRepo(null)}
           >
             <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
             <XAxis
@@ -107,19 +139,29 @@ export function StarChart({
                 padding: "8px 10px",
               }}
             />
-            {activeRepos.map((repository, index) => (
-              <Line
-                key={repository}
-                type="monotone"
-                dataKey={repository}
-                name={repository}
-                stroke={lineColors[index % lineColors.length]}
-                strokeWidth={1.5}
-                dot={false}
-                activeDot={{ r: 3, strokeWidth: 2, fill: "var(--card)" }}
-                connectNulls
-              />
-            ))}
+            {renderedRepos.map((repository, index) => {
+              const isHovered = hoveredRepo === repository;
+              const colorIndex = activeRepos.indexOf(repository) % lineColors.length;
+              return (
+                <Line
+                  key={repository}
+                  type="monotone"
+                  dataKey={repository}
+                  name={repository}
+                  stroke={lineColors[colorIndex]}
+                  strokeWidth={isHovered ? 2.5 : 1.5}
+                  dot={false}
+                  activeDot={{ r: 4, strokeWidth: 2, fill: "var(--card)" }}
+                  connectNulls
+                  style={{
+                    transition: "stroke-width 150ms",
+                  }}
+                  onMouseEnter={() => setHoveredRepo(repository)}
+                  onMouseLeave={() => setHoveredRepo(null)}
+                  opacity={hoveredRepo && hoveredRepo !== repository ? 0.3 : 1}
+                />
+              );
+            })}
           </LineChart>
         </ResponsiveContainer>
       </div>

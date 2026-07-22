@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import { RepoDetailDrawer } from "@/components/stars/repo-detail-drawer";
 import { StarChart } from "@/components/stars/star-chart";
 import { StarTable } from "@/components/stars/star-table";
 import type { StarDashboardData } from "@/lib/stars";
@@ -21,8 +22,8 @@ export function DashboardClient({
 }) {
   const [query, setQuery] = useState("");
   const [visibility, setVisibility] = useState("all");
+  const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
 
-  // Filtered leaderboard based on search + visibility
   const filteredLeaderboard = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return leaderboard.filter((row) => {
@@ -34,7 +35,6 @@ export function DashboardClient({
     });
   }, [leaderboard, query, visibility]);
 
-  // Top N repos from filtered set to show in chart
   const visibleChartRepos = useMemo(
     () => filteredLeaderboard.slice(0, MAX_CHART_SERIES).map((r) => r.fullName),
     [filteredLeaderboard],
@@ -69,7 +69,7 @@ export function DashboardClient({
           <div>
             <h2 className="text-sm font-semibold">仓库排行榜</h2>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              当前 Star、周期增长与仓库状态
+              当前 Star、周期增长与仓库状态 · 点击仓库查看详情
             </p>
           </div>
         </div>
@@ -80,8 +80,16 @@ export function DashboardClient({
           onQueryChange={setQuery}
           visibility={visibility}
           onVisibilityChange={setVisibility}
+          onRepoClick={(fullName) => setSelectedRepo(fullName)}
         />
       </section>
+
+      {/* Repo detail drawer */}
+      <RepoDetailDrawer
+        repoFullName={selectedRepo}
+        open={selectedRepo !== null}
+        onClose={() => setSelectedRepo(null)}
+      />
     </>
   );
 }

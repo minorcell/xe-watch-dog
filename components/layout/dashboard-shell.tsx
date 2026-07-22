@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Activity, ChevronLeft, ChevronRight, Star } from "lucide-react";
+import { Activity, Building2, ChevronLeft, ChevronRight, Star } from "lucide-react";
 
 import { LogoutButton } from "@/components/auth/logout-button";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -67,23 +67,25 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         )}
 
         {/* Nav */}
-        <nav className="flex-1 px-2 py-3" aria-label="主导航">
+        <nav className="flex-1 space-y-1 px-2 py-3" aria-label="主导航">
           {collapsed ? (
-            <Link
-              href="/dashboard"
-              className="grid h-8 place-items-center rounded-md bg-sidebar-accent text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
-              title="Star 看板"
-            >
-              <Star className="size-3.5" />
-            </Link>
+            <>
+              <Link href="/dashboard" className="grid h-8 place-items-center rounded-md bg-sidebar-accent text-sidebar-foreground transition-colors hover:bg-sidebar-accent" title="Star 看板">
+                <Star className="size-3.5" />
+              </Link>
+              <Link href="/dashboard/admin" className="grid h-8 place-items-center rounded-md text-sidebar-foreground transition-colors hover:bg-sidebar-accent" title="组织管理">
+                <Building2 className="size-3.5" />
+              </Link>
+            </>
           ) : (
-            <Link
-              href="/dashboard"
-              className="flex h-8 items-center gap-2.5 rounded-md bg-sidebar-accent px-2.5 text-xs font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
-            >
-              <Star className="size-3.5" />
-              Star 看板
-            </Link>
+            <>
+              <Link href="/dashboard" className="flex h-8 items-center gap-2.5 rounded-md bg-sidebar-accent px-2.5 text-xs font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent">
+                <Star className="size-3.5" />Star 看板
+              </Link>
+              <Link href="/dashboard/admin" className="flex h-8 items-center gap-2.5 rounded-md px-2.5 text-xs font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent">
+                <Building2 className="size-3.5" />组织管理
+              </Link>
+            </>
           )}
         </nav>
 

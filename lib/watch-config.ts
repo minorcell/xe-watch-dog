@@ -5,6 +5,8 @@ import { cache } from "react";
 import { parse } from "yaml";
 import { z } from "zod";
 
+import { isOrgDataAvailable, listGroups } from "@/lib/database";
+
 const personSchema = z.object({
   name: z.string().trim(),
   id: z.string().trim(),
@@ -13,7 +15,6 @@ const personSchema = z.object({
 const repositoryUrlSchema = z.string().trim().refine(
   (value) => {
     if (value === "") return true;
-
     try {
       const url = new URL(value);
       const parts = url.pathname.split("/").filter(Boolean);
@@ -52,40 +53,67 @@ export type ConfiguredRepository = {
 
 const configPath = path.join(process.cwd(), "app", "data", "info.yaml");
 
+/** Read from YAML (only used as fallback when DB is empty) */
 export const getWatchConfig = cache(async (): Promise<WatchConfig> => {
   const source = await readFile(configPath, "utf8");
   return watchConfigSchema.parse(parse(source));
 });
 
+/** Primary data source: reads repos from org_groups table. Falls back to YAML. */
 export const getConfiguredRepositories = cache(async (): Promise<ConfiguredRepository[]> => {
-  const config = await getWatchConfig();
+  // Try database first
+  const hasDbData = await isOrgDataAvailable();
+  if (hasDbData) {
+    const groups = await listGroups();
+    return groups.flatMap((group) => {
+      if (!group.githubRepo) return [];
+      try {
+        const url = new URL(group.githubRepo);
+        const [owner = "", rawName = ""] = url.pathname.split("/").filter(Boolean);
+        const name = rawName.replace(/\.git$/, "");
+        return [
+          {
+            owner,
+            name,
+            fullName: `${owner}/${name}`,
+            url: group.githubRepo,
+            projectName: group.projectName,
+            topic: group.projectTopic,
+          },
+        ];
+      } catch {
+        return [];
+      }
+    });
+  }
 
+  // Fallback to YAML
+  const config = await getWatchConfig();
   return config.groups.flatMap((group) => {
     if (!group.github_repo) return [];
-
     const url = new URL(group.github_repo);
     const [owner = "", rawName = ""] = url.pathname.split("/").filter(Boolean);
     const name = rawName.replace(/\.git$/, "");
-
-    return [{
-      owner,
-      name,
-      fullName: `${owner}/${name}`,
-      url: group.github_repo,
-      projectName: group.project_name,
-      topic: group.topic,
-    }];
+    return [
+      {
+        owner,
+        name,
+        fullName: `${owner}/${name}`,
+        url: group.github_repo,
+        projectName: group.project_name,
+        topic: group.topic,
+      },
+    ];
   });
 });
 
 export async function getWatchConfigSummary() {
-  const config = await getWatchConfig();
   const repositories = await getConfiguredRepositories();
+  const config = await getWatchConfig().catch(() => ({ groups: [] }));
 
   return {
     groupCount: config.groups.length,
     repositoryCount: repositories.length,
-    skippedRepositoryCount: config.groups.length - repositories.length,
-    owners: [...new Set(repositories.map((repository) => repository.owner))],
+    owners: [...new Set(repositories.map((repo) => repo.owner))],
   };
 }

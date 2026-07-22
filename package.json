@@ -9,7 +9,8 @@
     "lint": "eslint",
     "auth:hash": "node scripts/hash-password.mjs",
     "auth:hash-b64": "node scripts/hash-password-b64.mjs",
-    "auth:secret": "node scripts/generate-secret.mjs"
+    "auth:secret": "node scripts/generate-secret.mjs",
+    "db:import": "node scripts/import-org.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
