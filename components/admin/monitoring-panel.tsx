@@ -6,6 +6,7 @@ import { ExternalLink, LoaderCircle, RefreshCw, Trash2 } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Pagination } from "@/components/ui/pagination";
+import { RepoDetailModal } from "@/components/stars/repo-detail-modal";
 import { Switch } from "@/components/ui/switch";
 import type { Repo } from "@/lib/database";
 
@@ -17,6 +18,7 @@ export function MonitoringPanel() {
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
   const [toggling, setToggling] = useState<Set<string>>(new Set());
+  const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ githubRepo: string } | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -106,20 +108,24 @@ export function MonitoringPanel() {
               {sorted.length === 0 ? (
                 <tr><td colSpan={5} className="h-24 text-center text-xs text-muted-foreground">暂无仓库，点击"从 GitHub 刷新"</td></tr>
               ) : sorted.map((r) => (
-                <tr key={r.githubRepo} className={`border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors ${!r.monitoringEnabled ? "opacity-50" : ""}`}>
+                <tr
+                  key={r.githubRepo}
+                  className={`border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors cursor-pointer ${!r.monitoringEnabled ? "opacity-50" : ""}`}
+                  onClick={() => setSelectedRepo(r.githubRepo)}
+                >
                   <td className="h-10 px-3 text-xs font-mono font-medium first:pl-4">
-                    <Link href={`https://github.com/${r.githubRepo}`} target="_blank" rel="noreferrer" className="hover:text-primary inline-flex items-center gap-1">
+                    <Link href={`https://github.com/${r.githubRepo}`} target="_blank" rel="noreferrer" className="hover:text-primary inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       {r.githubRepo.split("/")[1]}<ExternalLink className="size-3 text-muted-foreground" />
                     </Link>
                   </td>
                   <td className="h-10 px-3 text-xs text-muted-foreground max-w-72 truncate">{r.description ?? "-"}</td>
                   <td className="h-10 px-3 text-[11px] text-muted-foreground">{r.language ?? "-"}</td>
-                  <td className="h-10 px-3 text-center">
+                  <td className="h-10 px-3 text-center" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-center">
                       <Switch checked={r.monitoringEnabled} loading={toggling.has(r.githubRepo)} onCheckedChange={() => toggleMonitor(r.githubRepo, r.monitoringEnabled)} aria-label={`监控 ${r.githubRepo}`} size="default" />
                     </div>
                   </td>
-                  <td className="h-10 px-3 last:pr-4">
+                  <td className="h-10 px-3 last:pr-4" onClick={(e) => e.stopPropagation()}>
                     <button type="button" onClick={() => setDeleteTarget({ githubRepo: r.githubRepo })} className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-3" /></button>
                   </td>
                 </tr>
@@ -130,6 +136,7 @@ export function MonitoringPanel() {
         <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={(s) => { setPageSize(s); setPage(1); }} />
       </div>
 
+      <RepoDetailModal repoFullName={selectedRepo} open={selectedRepo !== null} onClose={() => setSelectedRepo(null)} />
       <ConfirmDialog open={deleteTarget !== null} title="确认删除" description={`确定要删除「${deleteTarget?.githubRepo}」吗？历史快照数据会保留。`} confirmLabel="删除" variant="danger" onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} />
     </div>
   );
