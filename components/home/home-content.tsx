@@ -66,6 +66,8 @@ export function HomeContent() {
             className="mx-auto mt-6 max-w-md text-[15px] leading-relaxed text-muted-foreground"
           >
             从 GitHub 拉取仓库数据、追踪 Star 趋势、分析团队指标。
+            <br />
+            基于 Vercel + Neon 零成本托管，开箱即用。
           </motion.p>
 
           <motion.div
