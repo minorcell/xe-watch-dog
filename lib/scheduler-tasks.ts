@@ -67,7 +67,9 @@ export async function getLastRun() {
   const url = getDatabaseUrl();
   if (!url) return null;
   const sql = neon(url);
-  const [row] = await sql`SELECT ran_at AS "ranAt" FROM scheduler_runs ORDER BY ran_at DESC LIMIT 1`;
+  const [row] = await sql`SELECT ran_at FROM scheduler_runs ORDER BY ran_at DESC LIMIT 1`;
   if (!row) return null;
-  return { ranAt: row.ranAt as string };
+  // Force ISO string regardless of how the driver returns the timestamp.
+  const ranAt = row.ran_at instanceof Date ? row.ran_at.toISOString() : String(row.ran_at);
+  return { ranAt };
 }
