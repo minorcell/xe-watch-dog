@@ -13,7 +13,7 @@ export async function GET(request: Request) {
 
   const tasks = await buildSchedulerTasks();
   const results = await runScheduler(tasks);
-  recordRun();
+  await recordRun();
 
   const hasFailure = results.some((r) => !r.ok);
   console.log("[cron]", JSON.stringify(results));

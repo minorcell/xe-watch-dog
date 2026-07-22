@@ -10,7 +10,7 @@ export async function POST() {
   try {
     const tasks = await buildSchedulerTasks();
     const results = await runScheduler(tasks);
-    recordRun();
+    await recordRun();
     return NextResponse.json({ tasks: results });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "同步失败" }, { status: 503 });
