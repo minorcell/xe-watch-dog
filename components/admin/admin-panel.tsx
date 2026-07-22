@@ -1,13 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ChevronDown, ChevronRight, LoaderCircle, Plus, Trash2, Upload } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, LoaderCircle, Plus, RefreshCw, Trash2, Upload, X } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import type { Person, RepoDetail } from "@/lib/database";
+import type { Person, Repo, RepoDetail, SchedulerTask } from "@/lib/database";
 
 /* ── Modal ──────────────────────────────────────────────────── */
-
 function Modal({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: React.ReactNode }) {
   if (!open) return null;
   return (
@@ -21,140 +20,83 @@ function Modal({ open, title, onClose, children }: { open: boolean; title: strin
   );
 }
 
-/* ── Person form ────────────────────────────────────────────── */
+/* ── Main ───────────────────────────────────────────────────── */
 
-function PersonForm({ initial, onSave, onCancel, saving }: { initial?: Person; onSave: (githubId: string, realName: string) => void; onCancel: () => void; saving: boolean }) {
-  const [githubId, setGithubId] = useState(initial?.githubId ?? "");
-  const [realName, setRealName] = useState(initial?.realName ?? "");
-  return (
-    <form onSubmit={(e) => { e.preventDefault(); if (githubId.trim() && realName.trim()) onSave(githubId.trim(), realName.trim()); }} className="grid gap-3">
-      <label className="grid gap-1 text-[11px] font-medium">GitHub ID *<input value={githubId} onChange={(e) => setGithubId(e.target.value)} className="h-8 rounded-md border bg-transparent px-2.5 text-xs outline-none focus-visible:ring-1 focus-visible:ring-ring" required autoFocus /></label>
-      <label className="grid gap-1 text-[11px] font-medium">真实姓名 *<input value={realName} onChange={(e) => setRealName(e.target.value)} className="h-8 rounded-md border bg-transparent px-2.5 text-xs outline-none focus-visible:ring-1 focus-visible:ring-ring" required /></label>
-      <div className="flex justify-end gap-2 pt-2">
-        <button type="button" onClick={onCancel} className="h-8 rounded-md border px-3 text-xs font-medium hover:bg-accent">取消</button>
-        <button type="submit" disabled={saving} className="inline-flex h-8 items-center gap-1.5 rounded-md bg-foreground px-3 text-xs font-medium text-background hover:bg-foreground/90 disabled:opacity-40">{saving && <LoaderCircle className="size-3 animate-spin" />}{initial ? "保存" : "创建"}</button>
-      </div>
-    </form>
-  );
-}
-
-/* ── Repo form ──────────────────────────────────────────────── */
-
-function RepoForm({ initial, people, onSave, onCancel, saving }: { initial?: RepoDetail; people: Person[]; onSave: (data: { githubRepo: string; members: { personId: number; role: string }[] }) => void; onCancel: () => void; saving: boolean }) {
-  const [githubRepo, setGithubRepo] = useState(initial?.githubRepo ?? "");
-  const [mentorId, setMentorId] = useState(String(initial?.members.find((m) => m.role === "mentor")?.personId ?? ""));
-  const [assistantId, setAssistantId] = useState(String(initial?.members.find((m) => m.role === "assistant")?.personId ?? ""));
-  const [leadId, setLeadId] = useState(String(initial?.members.find((m) => m.role === "lead")?.personId ?? ""));
-  const [memberIds, setMemberIds] = useState<Set<number>>(new Set(initial?.members.filter((m) => m.role === "member").map((m) => m.personId) ?? []));
-
-  function toggleMember(id: number) { setMemberIds((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; }); }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!githubRepo.trim()) return;
-    const members: { personId: number; role: string }[] = [];
-    if (mentorId) members.push({ personId: Number(mentorId), role: "mentor" });
-    if (assistantId) members.push({ personId: Number(assistantId), role: "assistant" });
-    if (leadId) members.push({ personId: Number(leadId), role: "lead" });
-    memberIds.forEach((id) => members.push({ personId: id, role: "member" }));
-    onSave({ githubRepo: githubRepo.trim(), members });
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="grid gap-3">
-      <label className="grid gap-1 text-[11px] font-medium">GitHub 仓库 *<input value={githubRepo} onChange={(e) => setGithubRepo(e.target.value)} className="h-8 rounded-md border bg-transparent px-2.5 text-xs outline-none focus-visible:ring-1 focus-visible:ring-ring font-mono" placeholder="1024XEngineer/RepoName" required autoFocus /></label>
-      <div className="grid grid-cols-2 gap-3">
-        <label className="grid gap-1 text-[11px] font-medium">导师 <select value={mentorId} onChange={(e) => setMentorId(e.target.value)} className="h-8 rounded-md border bg-transparent px-2 text-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"><option value="">选择</option>{people.map((p) => <option key={p.id} value={p.id}>{p.realName} ({p.githubId})</option>)}</select></label>
-        <label className="grid gap-1 text-[11px] font-medium">助教 <select value={assistantId} onChange={(e) => setAssistantId(e.target.value)} className="h-8 rounded-md border bg-transparent px-2 text-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"><option value="">选择</option>{people.map((p) => <option key={p.id} value={p.id}>{p.realName} ({p.githubId})</option>)}</select></label>
-      </div>
-      <label className="grid gap-1 text-[11px] font-medium">组长 <select value={leadId} onChange={(e) => setLeadId(e.target.value)} className="h-8 rounded-md border bg-transparent px-2 text-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"><option value="">选择（可选）</option>{people.map((p) => <option key={p.id} value={p.id}>{p.realName} ({p.githubId})</option>)}</select></label>
-      <fieldset className="grid gap-1">
-        <legend className="text-[11px] font-medium">组员</legend>
-        <div className="max-h-32 overflow-y-auto rounded-md border p-2 grid gap-0.5">
-          {people.map((p) => (<label key={p.id} className="flex items-center gap-2 rounded px-2 py-1 text-xs hover:bg-accent cursor-pointer"><input type="checkbox" checked={memberIds.has(p.id)} onChange={() => toggleMember(p.id)} className="size-3.5" />{p.realName} <span className="text-muted-foreground">({p.githubId})</span></label>))}
-        </div>
-      </fieldset>
-      <div className="flex justify-end gap-2 pt-2">
-        <button type="button" onClick={onCancel} className="h-8 rounded-md border px-3 text-xs font-medium hover:bg-accent">取消</button>
-        <button type="submit" disabled={saving} className="inline-flex h-8 items-center gap-1.5 rounded-md bg-foreground px-3 text-xs font-medium text-background hover:bg-foreground/90 disabled:opacity-40">{saving && <LoaderCircle className="size-3 animate-spin" />}{initial ? "保存" : "创建"}</button>
-      </div>
-    </form>
-  );
-}
-
-/* ── Main panel ─────────────────────────────────────────────── */
-
-const ROLE_LABELS: Record<string, string> = { mentor: "导师", assistant: "助教", lead: "组长", member: "组员" };
-const ROLE_ORDER = ["mentor", "assistant", "lead", "member"];
+type Tab = "settings" | "people";
 
 export function AdminPanel() {
-  const [people, setPeople] = useState<Person[]>([]);
-  const [repos, setRepos] = useState<RepoDetail[]>([]);
+  const [tab, setTab] = useState<Tab>("settings");
   const [loading, setLoading] = useState(true);
 
-  // Form state
-  const [formMode, setFormMode] = useState<"person" | "repo" | null>(null);
-  const [editing, setEditing] = useState<Person | RepoDetail | null>(null);
-  const [saving, setSaving] = useState(false);
+  // Data
+  const [repos, setRepos] = useState<Repo[]>([]);
+  const [people, setPeople] = useState<Person[]>([]);
+  const [tasks, setTasks] = useState<SchedulerTask[]>([]);
 
-  // Delete state
-  const [deleteTarget, setDeleteTarget] = useState<{ type: "person" | "repo"; id: number; name: string } | null>(null);
-
-  // Import
+  // Action states
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState("");
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState("");
-
-  // Expand
   const [expandedRepo, setExpandedRepo] = useState<string | null>(null);
+  const [repoDetail, setRepoDetail] = useState<RepoDetail | null>(null);
+
+  // Delete
+  const [deleteTarget, setDeleteTarget] = useState<{ type: string; id: string; name: string } | null>(null);
+
+  // People form
+  const [personForm, setPersonForm] = useState<{ open: boolean; initial?: Person }>({ open: false });
+
+  // Role edit
+  const [roleEdit, setRoleEdit] = useState<{ open: boolean; githubRepo: string }>({ open: false, githubRepo: "" });
+  const [roleMembers, setRoleMembers] = useState<{ githubId: string; role: string }[]>([]);
+  const [newGithubId, setNewGithubId] = useState("");
+  const [newRole, setNewRole] = useState("member");
+  const [roleSaving, setRoleSaving] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [pRes, rRes] = await Promise.all([fetch("/api/admin/people"), fetch("/api/admin/repos")]);
+    const [rRes, pRes, tRes] = await Promise.all([
+      fetch("/api/admin/repos"),
+      fetch("/api/admin/people"),
+      fetch("/api/admin/scheduler"),
+    ]);
+    if (rRes.ok) setRepos(await rRes.json());
     if (pRes.ok) setPeople(await pRes.json());
-    if (rRes.ok) {
-      const list = await rRes.json();
-      // Fetch detail for each to get members
-      const details = await Promise.all(list.map((r: { githubRepo: string }) =>
-        fetch(`/api/admin/repos?detail=${encodeURIComponent(r.githubRepo)}`).then((res) => res.ok ? res.json() : null)
-      ));
-      setRepos(details.filter(Boolean));
-    }
+    if (tRes.ok) setTasks(await tRes.json());
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  async function handleSavePerson(githubId: string, realName: string) {
-    setSaving(true);
-    const isEdit = editing && "githubId" in editing;
-    const url = isEdit ? `/api/admin/people/${(editing as Person).id}` : "/api/admin/people";
-    const method = isEdit ? "PUT" : "POST";
-    const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ githubId, realName }) });
-    if (res.ok) { setFormMode(null); setEditing(null); await fetchData(); }
-    setSaving(false);
-  }
-
-  async function handleSaveRepo(data: { githubRepo: string; members: { personId: number; role: string }[] }) {
-    setSaving(true);
-    const isEdit = editing && "githubRepo" in editing;
-    const url = isEdit ? "/api/admin/repos" : "/api/admin/repos";
-    const method = isEdit ? "PUT" : "POST";
-    const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ githubRepo: data.githubRepo, members: data.members }) });
-    if (res.ok) { setFormMode(null); setEditing(null); await fetchData(); }
-    setSaving(false);
-  }
-
-  async function handleDelete() {
-    if (!deleteTarget) return;
-    if (deleteTarget.type === "person") {
-      await fetch(`/api/admin/people/${deleteTarget.id}`, { method: "DELETE" });
-    } else {
-      await fetch(`/api/admin/repos?repo=${encodeURIComponent(deleteTarget.name)}`, { method: "DELETE" });
-    }
-    setDeleteTarget(null);
+  // Scheduler toggle
+  async function toggleTask(name: string, enabled: boolean) {
+    await fetch("/api/admin/scheduler", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, enabled: !enabled }) });
     await fetchData();
   }
 
+  // Monitoring toggle
+  async function toggleMonitor(githubRepo: string, current: boolean) {
+    if (current) {
+      await fetch("/api/admin/repos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "unmonitor", githubRepo }) });
+    } else {
+      await fetch("/api/admin/repos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "monitor", githubRepo }) });
+    }
+    await fetchData();
+  }
+
+  // Sync repos from GitHub
+  async function syncRepos() {
+    setSyncing(true);
+    setSyncMsg("");
+    const res = await fetch("/api/admin/repos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "sync" }) });
+    const data = await res.json();
+    setSyncMsg(res.ok ? `同步完成：新增 ${data.added}，更新 ${data.updated}` : (data.message ?? "同步失败"));
+    if (res.ok) await fetchData();
+    setSyncing(false);
+  }
+
+  // Import from YAML
   async function handleImport() {
     setImporting(true);
     setImportMsg("");
@@ -165,120 +107,275 @@ export function AdminPanel() {
     setImporting(false);
   }
 
+  // Fetch repo detail for member editing
+  async function loadRepoDetail(githubRepo: string) {
+    const res = await fetch(`/api/admin/repos?detail=${encodeURIComponent(githubRepo)}`);
+    if (res.ok) {
+      const detail = await res.json() as RepoDetail;
+      setRepoDetail(detail);
+      setRoleMembers(detail.members.map((m) => ({ githubId: m.githubId, role: m.role })));
+      setRoleEdit({ open: true, githubRepo });
+    }
+  }
+
+  // Save role members
+  async function saveRoleMembers() {
+    setRoleSaving(true);
+    await fetch("/api/admin/repo-members", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ githubRepo: roleEdit.githubRepo, members: roleMembers }),
+    });
+    setRoleSaving(false);
+    setRoleEdit({ open: false, githubRepo: "" });
+    await fetchData();
+  }
+
+  function addRoleMember() {
+    if (!newGithubId.trim()) return;
+    setRoleMembers((prev) => [...prev.filter((m) => m.githubId !== newGithubId.trim()), { githubId: newGithubId.trim(), role: newRole }]);
+    setNewGithubId("");
+  }
+
+  function removeRoleMember(githubId: string) {
+    setRoleMembers((prev) => prev.filter((m) => m.githubId !== githubId));
+  }
+
+  // People
+  async function savePerson(githubId: string, realName: string) {
+    await fetch("/api/admin/people", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ githubId, realName }) });
+    setPersonForm({ open: false });
+    await fetchData();
+  }
+
+  async function deletePerson(githubId: string) {
+    await fetch(`/api/admin/people?githubId=${encodeURIComponent(githubId)}`, { method: "DELETE" });
+    setDeleteTarget(null);
+    await fetchData();
+  }
+
   if (loading) {
     return <div className="mx-auto max-w-5xl py-16 text-center"><LoaderCircle className="mx-auto size-5 animate-spin text-muted-foreground" /><p className="mt-3 text-xs text-muted-foreground">加载中…</p></div>;
   }
 
+  const monitoredRepos = repos.filter((r) => r.monitoringEnabled);
+  const unmonitoredRepos = repos.filter((r) => !r.monitoringEnabled);
+
   return (
     <div className="mx-auto max-w-5xl">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-6 flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-semibold tracking-tight">组织管理</h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">管理仓库与人员</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button type="button" onClick={handleImport} disabled={importing} className="inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-medium hover:bg-accent disabled:opacity-40">{importing ? <LoaderCircle className="size-3 animate-spin" /> : <Upload className="size-3" />}从 YAML 导入</button>
-          <button type="button" onClick={() => { setEditing(null); setFormMode("repo"); }} className="inline-flex h-8 items-center gap-1.5 rounded-md bg-foreground px-3 text-xs font-medium text-background hover:bg-foreground/90"><Plus className="size-3" />添加仓库</button>
+          <h1 className="text-lg font-semibold tracking-tight">系统设置</h1>
+          <p className="mt-0.5 text-xs text-muted-foreground">调度任务 · 监控仓库 · 人员库</p>
         </div>
       </div>
 
-      {importMsg && <div className="mb-4 rounded-md border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-600 dark:text-emerald-500">{importMsg}</div>}
+      {/* Tabs */}
+      <div className="mb-6 flex gap-1 rounded-lg bg-muted p-1 w-fit">
+        {[{ key: "settings" as Tab, label: "调度 & 仓库" }, { key: "people" as Tab, label: "人员库" }].map((t) => (
+          <button key={t.key} type="button" onClick={() => setTab(t.key)} className={`inline-flex h-7 items-center rounded-md px-3 text-xs font-medium transition-colors ${tab === t.key ? "bg-card text-foreground shadow-[0_1px_2px_rgb(0_0_0/4%)]" : "text-muted-foreground hover:text-foreground"}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-      {/* ── Repo list ── */}
-      <section className="mb-6 overflow-hidden rounded-lg border bg-card">
-        <div className="border-b px-5 py-3"><h2 className="text-sm font-semibold">仓库</h2></div>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left">
-            <thead>
-              <tr className="border-b bg-muted/30">
-                <th className="h-8 w-8 px-3 text-[11px] font-medium text-muted-foreground first:pl-4" />
-                <th className="h-8 px-3 text-[11px] font-medium text-muted-foreground">仓库</th>
-                <th className="h-8 px-3 text-[11px] font-medium text-muted-foreground">描述</th>
-                <th className="h-8 px-3 text-[11px] font-medium text-muted-foreground">导师</th>
-                <th className="h-8 px-3 text-[11px] font-medium text-muted-foreground">助教</th>
-                <th className="h-8 px-3 text-[11px] font-medium text-muted-foreground">成员</th>
+      {tab === "settings" && (
+        <>
+          {/* ── Scheduler tasks ── */}
+          <section className="mb-6 overflow-hidden rounded-lg border bg-card">
+            <div className="border-b px-5 py-3"><h2 className="text-sm font-semibold">调度任务</h2></div>
+            <div className="divide-y divide-border/50">
+              {tasks.map((t) => (
+                <div key={t.name} className="flex items-center justify-between px-5 py-3">
+                  <div>
+                    <p className="text-xs font-medium font-mono">{t.name}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">{t.description}</p>
+                  </div>
+                  <button type="button" onClick={() => toggleTask(t.name, t.enabled)} className={`inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-medium transition-colors ${t.enabled ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-500" : "bg-muted text-muted-foreground"}`}>
+                    {t.enabled ? <Check className="size-3" /> : <X className="size-3" />}
+                    {t.enabled ? "开启" : "关闭"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* ── Repo list ── */}
+          <section className="overflow-hidden rounded-lg border bg-card">
+            <div className="flex items-center justify-between border-b px-5 py-3">
+              <div>
+                <h2 className="text-sm font-semibold">监控仓库</h2>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  <span className="text-emerald-600 dark:text-emerald-500 font-medium">{monitoredRepos.length} 个监控中</span>
+                  <span className="mx-1">·</span>
+                  <span className="text-muted-foreground">{unmonitoredRepos.length} 个未监控</span>
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={handleImport} disabled={importing} className="inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-[11px] font-medium hover:bg-accent disabled:opacity-40">
+                  {importing ? <LoaderCircle className="size-3 animate-spin" /> : <Upload className="size-3" />}YAML 导入
+                </button>
+                <button type="button" onClick={syncRepos} disabled={syncing} className="inline-flex h-7 items-center gap-1.5 rounded-md bg-foreground px-2.5 text-[11px] font-medium text-background hover:bg-foreground/90 disabled:opacity-40">
+                  {syncing ? <LoaderCircle className="size-3 animate-spin" /> : <RefreshCw className="size-3" />}从 GitHub 刷新
+                </button>
+              </div>
+            </div>
+
+            {(syncMsg || importMsg) && <div className="border-b px-5 py-2 text-[11px] text-emerald-600 dark:text-emerald-500 bg-emerald-500/5">{syncMsg || importMsg}</div>}
+
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left">
+                <thead><tr className="border-b bg-muted/30">
+                  <th className="h-8 w-8 px-3 text-[11px] font-medium text-muted-foreground first:pl-4" />
+                  <th className="h-8 px-3 text-[11px] font-medium text-muted-foreground">仓库</th>
+                  <th className="h-8 px-3 text-[11px] font-medium text-muted-foreground">描述</th>
+                  <th className="h-8 px-3 text-[11px] font-medium text-muted-foreground">语言</th>
+                  <th className="h-8 w-24 px-3 text-[11px] font-medium text-muted-foreground text-center">监控</th>
+                  <th className="h-8 w-24 px-3 text-[11px] font-medium text-muted-foreground last:pr-4">操作</th>
+                </tr></thead>
+                <tbody>
+                  {repos.length === 0 ? (
+                    <tr><td colSpan={6} className="h-24 text-center text-xs text-muted-foreground">暂无仓库，点击「从 GitHub 刷新」同步</td></tr>
+                  ) : [...monitoredRepos, ...unmonitoredRepos].map((r) => {
+                    const isExpanded = expandedRepo === r.githubRepo;
+                    return (<>
+                      <tr key={r.githubRepo} className={`border-b border-border/50 ${isExpanded ? "bg-muted/10" : ""} ${!r.monitoringEnabled ? "opacity-50" : ""}`}>
+                        <td className="h-10 px-3 first:pl-4">
+                          <button type="button" onClick={() => { if (isExpanded) setExpandedRepo(null); else { setExpandedRepo(r.githubRepo); loadRepoDetail(r.githubRepo); } }} className="grid size-6 place-items-center rounded hover:bg-accent">{isExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}</button>
+                        </td>
+                        <td className="h-10 px-3 text-xs font-mono font-medium">{r.githubRepo.split("/")[1]}</td>
+                        <td className="h-10 px-3 text-xs text-muted-foreground max-w-56 truncate">{r.description ?? "-"}</td>
+                        <td className="h-10 px-3 text-[11px] text-muted-foreground">{r.language ?? "-"}</td>
+                        <td className="h-10 px-3 text-center">
+                          <button type="button" onClick={() => toggleMonitor(r.githubRepo, r.monitoringEnabled)} className={`inline-flex h-6 items-center gap-1 rounded px-2 text-[11px] font-medium transition-colors ${r.monitoringEnabled ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-500" : "bg-muted text-muted-foreground hover:bg-accent"}`}>
+                            {r.monitoringEnabled ? "监控中" : "未监控"}
+                          </button>
+                        </td>
+                        <td className="h-10 px-3 last:pr-4">
+                          <button type="button" onClick={() => { setDeleteTarget({ type: "repo", id: r.githubRepo, name: r.githubRepo }); }} className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-3" /></button>
+                        </td>
+                      </tr>
+                      {isExpanded && repoDetail && repoDetail.githubRepo === r.githubRepo && (
+                        <tr key={`${r.githubRepo}-detail`} className="border-b border-border/50 bg-muted/5">
+                          <td colSpan={6} className="px-8 py-3">
+                            <div className="grid gap-2 text-xs">
+                              <p className="font-medium">成员</p>
+                              {repoDetail.members.length === 0 && <p className="text-muted-foreground">暂无成员</p>}
+                              {repoDetail.members.map((m) => (
+                                <div key={m.githubId} className="flex items-center gap-3">
+                                  <span className="text-[11px] font-medium uppercase w-12 text-muted-foreground">{roleLabel(m.role)}</span>
+                                  <span className="font-medium">{m.realName ?? m.githubId}</span>
+                                  <span className="text-muted-foreground font-mono">@{m.githubId}</span>
+                                </div>
+                              ))}
+                              <button type="button" onClick={() => loadRepoDetail(r.githubRepo)} className="mt-1 text-[11px] text-primary hover:underline self-start">编辑成员</button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>);
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </>
+      )}
+
+      {/* ── People tab ── */}
+      {tab === "people" && (
+        <section className="overflow-hidden rounded-lg border bg-card">
+          <div className="flex items-center justify-between border-b px-5 py-3">
+            <h2 className="text-sm font-semibold">人员库</h2>
+            <button type="button" onClick={() => setPersonForm({ open: true })} className="inline-flex h-7 items-center gap-1 rounded-md border px-2.5 text-[11px] font-medium hover:bg-accent"><Plus className="size-3" />新增</button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left">
+              <thead><tr className="border-b bg-muted/30">
+                <th className="h-8 px-3 text-[11px] font-medium text-muted-foreground first:pl-4">GitHub ID</th>
+                <th className="h-8 px-3 text-[11px] font-medium text-muted-foreground">姓名</th>
                 <th className="h-8 w-24 px-3 text-[11px] font-medium text-muted-foreground last:pr-4">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {repos.length === 0 ? (
-                <tr><td colSpan={7} className="h-24 text-center text-xs text-muted-foreground">暂无仓库，点击「从 YAML 导入」或「添加仓库」</td></tr>
-              ) : repos.map((r) => {
-                const isExpanded = expandedRepo === r.githubRepo;
-                const mentor = r.members.find((m) => m.role === "mentor");
-                const assistant = r.members.find((m) => m.role === "assistant");
-                const memberList = r.members.filter((m) => m.role === "member" || m.role === "lead");
-                return (
-                  <tr key={r.githubRepo} className={`border-b border-border/50 last:border-0 ${isExpanded ? "bg-muted/10" : ""}`}>
-                    <td className="h-10 px-3 first:pl-4">
-                      <button type="button" onClick={() => setExpandedRepo(isExpanded ? null : r.githubRepo)} className="grid size-6 place-items-center rounded hover:bg-accent">{isExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}</button>
-                    </td>
-                    <td className="h-10 px-3">
-                      <span className="text-xs font-medium font-mono">{r.githubRepo.split("/")[1]}</span>
-                      <span className="ml-1.5 text-[10px] text-muted-foreground">{r.language ? `· ${r.language}` : ""}{r.archived ? " · archived" : ""}</span>
-                    </td>
-                    <td className="h-10 px-3 text-xs text-muted-foreground max-w-64 truncate">{r.description ?? "-"}</td>
-                    <td className="h-10 px-3 text-xs">{mentor ? <span className="font-medium">{mentor.realName}</span> : "-"}</td>
-                    <td className="h-10 px-3 text-xs">{assistant ? <span className="font-medium">{assistant.realName}</span> : "-"}</td>
-                    <td className="h-10 px-3 text-xs text-muted-foreground">{memberList.length} 人</td>
-                    <td className="h-10 px-3 last:pr-4">
+              </tr></thead>
+              <tbody>
+                {people.length === 0 ? (
+                  <tr><td colSpan={3} className="h-24 text-center text-xs text-muted-foreground">暂无人员</td></tr>
+                ) : people.map((p) => (
+                  <tr key={p.githubId} className="border-b border-border/50 last:border-0 hover:bg-muted/20">
+                    <td className="h-9 px-3 text-xs font-mono first:pl-4">{p.githubId}</td>
+                    <td className="h-9 px-3 text-xs">{p.realName ?? <span className="text-muted-foreground/50">未填写</span>}</td>
+                    <td className="h-9 px-3 last:pr-4">
                       <div className="flex items-center gap-1">
-                        <button type="button" onClick={() => { setEditing(r); setFormMode("repo"); }} className="h-7 rounded px-2 text-[11px] hover:bg-accent">编辑</button>
-                        <button type="button" onClick={() => setDeleteTarget({ type: "repo", id: r.id, name: r.githubRepo })} className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-3" /></button>
+                        <button type="button" onClick={() => setPersonForm({ open: true, initial: p })} className="h-6 rounded px-1.5 text-[11px] hover:bg-accent">编辑</button>
+                        <button type="button" onClick={() => setDeleteTarget({ type: "person", id: p.githubId, name: p.realName ?? p.githubId })} className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-3" /></button>
                       </div>
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* ── People library ── */}
-      <section className="overflow-hidden rounded-lg border bg-card">
-        <div className="flex items-center justify-between border-b px-5 py-3">
-          <h2 className="text-sm font-semibold">人员库</h2>
-          <button type="button" onClick={() => { setEditing(null); setFormMode("person"); }} className="inline-flex h-7 items-center gap-1 rounded-md border px-2.5 text-[11px] font-medium hover:bg-accent"><Plus className="size-3" />新增人员</button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left">
-            <thead>
-              <tr className="border-b bg-muted/30">
-                <th className="h-8 px-3 text-[11px] font-medium text-muted-foreground first:pl-4">GitHub ID</th>
-                <th className="h-8 px-3 text-[11px] font-medium text-muted-foreground">姓名</th>
-                <th className="h-8 w-20 px-3 text-[11px] font-medium text-muted-foreground last:pr-4">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {people.length === 0 ? (
-                <tr><td colSpan={3} className="h-24 text-center text-xs text-muted-foreground">暂无人员</td></tr>
-              ) : people.map((p) => (
-                <tr key={p.id} className="border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
-                  <td className="h-9 px-3 text-xs font-mono first:pl-4">{p.githubId}</td>
-                  <td className="h-9 px-3 text-xs">{p.realName}</td>
-                  <td className="h-9 px-3 last:pr-4">
-                    <div className="flex items-center gap-1">
-                      <button type="button" onClick={() => { setEditing(p); setFormMode("person"); }} className="h-6 rounded px-1.5 text-[11px] hover:bg-accent">编辑</button>
-                      <button type="button" onClick={() => setDeleteTarget({ type: "person", id: p.id, name: p.realName })} className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-3" /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {/* Modals */}
-      <Modal open={formMode === "person"} title={`${editing ? "编辑" : "新增"}人员`} onClose={() => setFormMode(null)}>
-        <PersonForm initial={editing as Person | undefined} onSave={handleSavePerson} onCancel={() => setFormMode(null)} saving={saving} />
-      </Modal>
-      <Modal open={formMode === "repo"} title={`${editing ? "编辑" : "添加"}仓库`} onClose={() => setFormMode(null)}>
-        <RepoForm initial={editing as RepoDetail | undefined} people={people} onSave={handleSaveRepo} onCancel={() => setFormMode(null)} saving={saving} />
+      <Modal open={personForm.open} title={`${personForm.initial ? "编辑" : "新增"}人员`} onClose={() => setPersonForm({ open: false })}>
+        <PersonFormContent initial={personForm.initial} onSave={savePerson} onCancel={() => setPersonForm({ open: false })} />
       </Modal>
 
-      <ConfirmDialog open={deleteTarget !== null} title="确认删除" description={`确定要删除「${deleteTarget?.name}」吗？`} confirmLabel="删除" variant="danger" onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} />
+      <Modal open={roleEdit.open} title="编辑成员" onClose={() => setRoleEdit({ open: false, githubRepo: "" })}>
+        <div className="grid gap-3">
+          {roleMembers.map((m) => (
+            <div key={m.githubId} className="flex items-center gap-2">
+              <span className="text-xs font-mono flex-1">{m.githubId}</span>
+              <select value={m.role} onChange={(e) => setRoleMembers((prev) => prev.map((x) => x.githubId === m.githubId ? { ...x, role: e.target.value } : x))} className="h-7 rounded-md border bg-transparent px-2 text-[11px] outline-none">
+                {["mentor","assistant","lead","member"].map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}
+              </select>
+              <button type="button" onClick={() => removeRoleMember(m.githubId)} className="grid size-6 place-items-center rounded text-muted-foreground hover:text-destructive"><X className="size-3" /></button>
+            </div>
+          ))}
+          <div className="flex items-center gap-2 border-t pt-3">
+            <input value={newGithubId} onChange={(e) => setNewGithubId(e.target.value)} placeholder="GitHub ID" className="h-7 flex-1 rounded-md border bg-transparent px-2 text-xs outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+            <select value={newRole} onChange={(e) => setNewRole(e.target.value)} className="h-7 rounded-md border bg-transparent px-2 text-[11px] outline-none">
+              {["mentor","assistant","lead","member"].map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}
+            </select>
+            <button type="button" onClick={addRoleMember} className="h-7 rounded-md bg-foreground px-2.5 text-[11px] font-medium text-background hover:bg-foreground/90">添加</button>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={() => setRoleEdit({ open: false, githubRepo: "" })} className="h-8 rounded-md border px-3 text-xs font-medium hover:bg-accent">取消</button>
+            <button type="button" onClick={saveRoleMembers} disabled={roleSaving} className="inline-flex h-8 items-center gap-1.5 rounded-md bg-foreground px-3 text-xs font-medium text-background hover:bg-foreground/90 disabled:opacity-40">{roleSaving && <LoaderCircle className="size-3 animate-spin" />}保存</button>
+          </div>
+        </div>
+      </Modal>
+
+      <ConfirmDialog open={deleteTarget !== null} title="确认删除" description={`确定要删除「${deleteTarget?.name}」吗？`} confirmLabel="删除" variant="danger" onConfirm={async () => {
+        if (!deleteTarget) return;
+        if (deleteTarget.type === "person") await deletePerson(deleteTarget.id);
+        if (deleteTarget.type === "repo") {
+          await fetch("/api/admin/repos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "unmonitor", githubRepo: deleteTarget.id }) });
+          await fetchData();
+        }
+        setDeleteTarget(null);
+      }} onCancel={() => setDeleteTarget(null)} />
     </div>
+  );
+}
+
+function roleLabel(role: string) {
+  const m: Record<string, string> = { mentor: "导师", assistant: "助教", lead: "组长", member: "组员" };
+  return m[role] ?? role;
+}
+
+function PersonFormContent({ initial, onSave, onCancel }: { initial?: Person; onSave: (githubId: string, realName: string) => void; onCancel: () => void }) {
+  const [githubId, setGithubId] = useState(initial?.githubId ?? "");
+  const [realName, setRealName] = useState(initial?.realName ?? "");
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); if (githubId.trim()) onSave(githubId.trim(), realName.trim()); }} className="grid gap-3">
+      <label className="grid gap-1 text-[11px] font-medium">GitHub ID *<input value={githubId} onChange={(e) => setGithubId(e.target.value)} className="h-8 rounded-md border bg-transparent px-2.5 text-xs outline-none focus-visible:ring-1 focus-visible:ring-ring" required autoFocus disabled={!!initial} /></label>
+      <label className="grid gap-1 text-[11px] font-medium">真实姓名<input value={realName} onChange={(e) => setRealName(e.target.value)} className="h-8 rounded-md border bg-transparent px-2.5 text-xs outline-none focus-visible:ring-1 focus-visible:ring-ring" /></label>
+      <div className="flex justify-end gap-2 pt-2">
+        <button type="button" onClick={onCancel} className="h-8 rounded-md border px-3 text-xs font-medium hover:bg-accent">取消</button>
+        <button type="submit" className="inline-flex h-8 items-center rounded-md bg-foreground px-3 text-xs font-medium text-background hover:bg-foreground/90">保存</button>
+      </div>
+    </form>
   );
 }

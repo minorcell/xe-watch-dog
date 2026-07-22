@@ -95,7 +95,7 @@ export function RepoDetailDrawer({
                 <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">成员 ({detail.members.length} 人)</p>
                 <ul className="mt-1.5 grid gap-0.5">
                   {detail.members.map((m) => (
-                    <li key={`${m.personId}-${m.role}`} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-muted/30">
+                    <li key={`${m.githubId}-${m.role}`} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-muted/30">
                       <span className={`text-[10px] font-medium uppercase tracking-wider w-10 shrink-0 ${m.role === "mentor" ? "text-primary" : "text-muted-foreground"}`}>{ROLE_LABELS[m.role] ?? m.role}</span>
                       <span className="font-medium">{m.realName}</span>
                       <Link href={`https://github.com/${m.githubId}`} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-primary font-mono">@{m.githubId}</Link>

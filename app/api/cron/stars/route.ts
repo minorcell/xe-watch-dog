@@ -1,69 +1,95 @@
 import { NextResponse } from "next/server";
 
 import { getCronSecret } from "@/lib/env";
-import { fetchRepoMetadata } from "@/lib/github";
+import { getGitHubEnv } from "@/lib/env";
+import { fetchOrgRepos, fetchRepoMetadata, fetchTeamMembers } from "@/lib/github";
 import { collectStarSnapshots } from "@/lib/stars";
-import { getTrackedRepos, syncRepoMetadata } from "@/lib/database";
+import { bulkUpsertOrgRepos, ensureSchedulerTasks, getEnabledTaskNames, getMonitoredRepos, syncRepoMetadata, upsertPerson } from "@/lib/database";
 import { runScheduler, type ScheduledTask } from "@/lib/scheduler";
 
 export async function GET(request: Request) {
   const cronSecret = getCronSecret();
-
-  if (!cronSecret) {
-    return NextResponse.json({ message: "CRON_SECRET 尚未配置" }, { status: 503 });
-  }
-
+  if (!cronSecret) return NextResponse.json({ message: "CRON_SECRET 尚未配置" }, { status: 503 });
   if (request.headers.get("authorization") !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ message: "未授权" }, { status: 401 });
   }
 
-  const tasks: ScheduledTask[] = [
-    // Task 1: Sync repo metadata from GitHub
-    {
+  await ensureSchedulerTasks();
+  const enabledTasks = await getEnabledTaskNames();
+  const org = getGitHubEnv().GITHUB_ORG ?? "1024XEngineer";
+
+  const allTasks: ScheduledTask[] = [];
+
+  // sync-org-repos
+  if (enabledTasks.includes("sync-org-repos")) {
+    allTasks.push({
+      name: "sync-org-repos",
+      run: async () => {
+        const repos = await fetchOrgRepos(org);
+        const result = await bulkUpsertOrgRepos(repos);
+        return { ok: true, message: `新增 ${result.added}，更新 ${result.updated}`, detail: result };
+      },
+    });
+  }
+
+  // sync-repo-metadata
+  if (enabledTasks.includes("sync-repo-metadata")) {
+    allTasks.push({
       name: "sync-repo-metadata",
       run: async () => {
-        const repos = await getTrackedRepos();
-        if (repos.length === 0) return { ok: true, message: "没有需要同步的仓库" };
-
+        const repos = await getMonitoredRepos();
         let synced = 0;
-        let failed = 0;
-        const errors: string[] = [];
-
-        for (const repo of repos) {
+        for (const r of repos) {
           try {
-            const [owner, name] = repo.githubRepo.split("/");
-            const meta = await fetchRepoMetadata(owner, name);
-            await syncRepoMetadata(repo.githubRepo, meta);
+            const [owner, name] = r.split("/");
+            await syncRepoMetadata(r, await fetchRepoMetadata(owner, name));
             synced++;
-          } catch (err) {
-            failed++;
-            errors.push(`${repo.githubRepo}: ${err instanceof Error ? err.message : String(err)}`);
-          }
+          } catch { /* skip */ }
         }
-
-        return {
-          ok: failed === 0,
-          message: `同步 ${synced} 个仓库元信息` + (failed > 0 ? `，${failed} 个失败` : ""),
-          detail: errors.length > 0 ? errors.slice(0, 5) : undefined,
-        };
+        return { ok: true, message: `同步 ${synced}/${repos.length} 个仓库` };
       },
-    },
+    });
+  }
 
-    // Task 2: Collect star snapshots
-    {
+  // collect-star-snapshots
+  if (enabledTasks.includes("collect-star-snapshots")) {
+    allTasks.push({
       name: "collect-star-snapshots",
       run: async () => {
         const result = await collectStarSnapshots();
         return {
           ok: result.failed === 0,
-          message: `采集 ${result.saved} 个仓库 Star 快照` + (result.failed > 0 ? `，${result.failed} 个失败` : ""),
+          message: `采集 ${result.saved} 个仓库` + (result.failed > 0 ? `，${result.failed} 失败` : ""),
           detail: result.failed > 0 ? result.errors.slice(0, 5) : undefined,
         };
       },
-    },
-  ];
+    });
+  }
 
-  const results = await runScheduler(tasks);
+  // sync-team-members
+  if (enabledTasks.includes("sync-team-members")) {
+    allTasks.push({
+      name: "sync-team-members",
+      run: async () => {
+        const repos = await getMonitoredRepos();
+        let added = 0;
+        for (const r of repos) {
+          try {
+            const [_org, repoName] = r.split("/");
+            // Try a few common team slug patterns
+            const members = await fetchTeamMembers(org, repoName);
+            for (const login of members) {
+              await upsertPerson(login, undefined);
+              added++;
+            }
+          } catch { /* skip */ }
+        }
+        return { ok: true, message: `新增 ${added} 个成员` };
+      },
+    });
+  }
+
+  const results = await runScheduler(allTasks);
   const hasFailure = results.some((r) => !r.ok);
   console.log("[cron]", JSON.stringify(results));
   return NextResponse.json({ tasks: results }, { status: hasFailure ? 500 : 200 });

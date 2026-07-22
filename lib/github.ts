@@ -117,6 +117,60 @@ export async function fetchAllRepositoryStarStats(repositories: ConfiguredReposi
   return { stats, errors };
 }
 
+// ── Org repos list (paginated) ────────────────────────────────
+
+export type OrgRepoSummary = {
+  githubRepo: string;
+  description: string | null;
+  homepageUrl: string | null;
+  topics: string[];
+  language: string | null;
+  visibility: string;
+  archived: boolean;
+};
+
+export async function fetchOrgRepos(org: string): Promise<OrgRepoSummary[]> {
+  const all: OrgRepoSummary[] = [];
+  let page = 1;
+  const perPage = 100;
+
+  while (true) {
+    const url = `https://api.github.com/orgs/${encodeURIComponent(org)}/repos?per_page=${perPage}&page=${page}&sort=full_name`;
+    const response = await fetch(url, { headers: githubHeaders() });
+
+    if (!response.ok) {
+      throw new Error(`GitHub API error ${response.status} listing org repos`);
+    }
+
+    const data = await response.json() as Array<{
+      full_name: string;
+      description: string | null;
+      homepage: string | null;
+      topics: string[];
+      language: string | null;
+      visibility: string;
+      archived: boolean;
+    }>;
+
+    for (const r of data) {
+      all.push({
+        githubRepo: r.full_name,
+        description: r.description ?? null,
+        homepageUrl: r.homepage ?? null,
+        topics: r.topics ?? [],
+        language: r.language ?? null,
+        visibility: r.visibility ?? "unknown",
+        archived: r.archived ?? false,
+      });
+    }
+
+    if (data.length < perPage) break;
+    page++;
+  }
+
+  return all;
+}
+
 // ── Repo metadata for sync ────────────────────────────────────
 
 export type RepoMetadata = {
@@ -133,26 +187,27 @@ export async function fetchRepoMetadata(owner: string, repo: string): Promise<Re
     `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
     { headers: githubHeaders() },
   );
-
-  if (!response.ok) {
-    throw new Error(`GitHub API error ${response.status} for ${owner}/${repo}`);
-  }
+  if (!response.ok) throw new Error(`GitHub API error ${response.status} for ${owner}/${repo}`);
 
   const data = await response.json() as {
-    description: string | null;
-    homepage: string | null;
-    topics: string[];
-    language: string | null;
-    visibility: string;
-    archived: boolean;
+    description: string | null; homepage: string | null; topics: string[];
+    language: string | null; visibility: string; archived: boolean;
   };
 
   return {
-    description: data.description ?? null,
-    homepageUrl: data.homepage ?? null,
-    topics: data.topics ?? [],
-    language: data.language ?? null,
-    visibility: data.visibility ?? "unknown",
-    archived: data.archived ?? false,
+    description: data.description ?? null, homepageUrl: data.homepage ?? null,
+    topics: data.topics ?? [], language: data.language ?? null,
+    visibility: data.visibility ?? "unknown", archived: data.archived ?? false,
   };
+}
+
+// ── Team members ──────────────────────────────────────────────
+
+export async function fetchTeamMembers(org: string, teamSlug: string): Promise<string[]> {
+  const url = `https://api.github.com/orgs/${encodeURIComponent(org)}/teams/${encodeURIComponent(teamSlug)}/members?per_page=100`;
+  const response = await fetch(url, { headers: githubHeaders() });
+  if (!response.ok) return [];
+
+  const data = await response.json() as Array<{ login: string }>;
+  return data.map((m) => m.login);
 }

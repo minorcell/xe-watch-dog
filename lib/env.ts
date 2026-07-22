@@ -12,6 +12,7 @@ const authEnvSchema = z.object({
 
 const githubEnvSchema = z.object({
   GITHUB_TOKEN: z.string().min(1).optional(),
+  GITHUB_ORG: z.string().min(1).optional(),
 });
 
 const databaseUrlSchema = z.url();
@@ -36,6 +37,7 @@ export function getAuthEnv() {
 export function getGitHubEnv() {
   return githubEnvSchema.parse({
     GITHUB_TOKEN: process.env.GITHUB_TOKEN || undefined,
+    GITHUB_ORG: process.env.GITHUB_ORG || undefined,
   });
 }
 

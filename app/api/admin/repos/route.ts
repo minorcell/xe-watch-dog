@@ -1,85 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getSession } from "@/lib/auth";
-import { listRepos, upsertRepo, setRepoMember, removeRepoMember, getRepoDetail } from "@/lib/database";
+import { getGitHubEnv } from "@/lib/env";
+import { fetchOrgRepos } from "@/lib/github";
+import { disableMonitoring, enableMonitoring, getRepoDetail, listRepos, bulkUpsertOrgRepos } from "@/lib/database";
 
+// GET ?detail=xxx  → single repo detail
+// GET             → all repos (from DB)
 export async function GET(request: NextRequest) {
   if (!(await getSession())) return NextResponse.json({ message: "未登录" }, { status: 401 });
-
-  // ?detail=1024XEngineer/Windup
-  const detailRepo = request.nextUrl.searchParams.get("detail");
-  if (detailRepo) {
-    const detail = await getRepoDetail(detailRepo);
-    if (!detail) return NextResponse.json({ message: "仓库不存在" }, { status: 404 });
-    return NextResponse.json(detail);
+  const detail = request.nextUrl.searchParams.get("detail");
+  if (detail) {
+    const repo = await getRepoDetail(detail);
+    if (!repo) return NextResponse.json({ message: "仓库不存在" }, { status: 404 });
+    return NextResponse.json(repo);
   }
-
   const repos = await listRepos();
   return NextResponse.json(repos);
 }
 
+// POST { action: "sync" }  → trigger GitHub org sync
+// POST { action: "monitor", githubRepo } → enable monitoring
+// POST { action: "unmonitor", githubRepo } → disable monitoring
 export async function POST(request: NextRequest) {
   if (!(await getSession())) return NextResponse.json({ message: "未登录" }, { status: 401 });
-  const { githubRepo, members } = await request.json();
+  const body = await request.json();
+  const { action, githubRepo } = body;
 
-  if (!githubRepo?.trim()) {
-    return NextResponse.json({ message: "GitHub 仓库不能为空" }, { status: 400 });
+  if (action === "sync") {
+    const org = getGitHubEnv().GITHUB_ORG ?? "1024XEngineer";
+    const repos = await fetchOrgRepos(org);
+    const result = await bulkUpsertOrgRepos(repos);
+    return NextResponse.json({ message: `新增 ${result.added}，更新 ${result.updated}`, ...result });
   }
 
-  const repo = await upsertRepo(githubRepo.trim());
-
-  // Assign members
-  if (Array.isArray(members)) {
-    for (const m of members) {
-      if (m.personId && m.role) {
-        await setRepoMember(repo.id, m.personId, m.role);
-      }
-    }
+  if (action === "monitor" && githubRepo) {
+    await enableMonitoring(githubRepo);
+    return NextResponse.json({ success: true });
   }
 
-  const detail = await getRepoDetail(repo.githubRepo);
-  return NextResponse.json(detail, { status: 201 });
-}
-
-export async function PUT(request: NextRequest) {
-  if (!(await getSession())) return NextResponse.json({ message: "未登录" }, { status: 401 });
-  const { githubRepo, members } = await request.json();
-
-  if (!githubRepo?.trim()) {
-    return NextResponse.json({ message: "GitHub 仓库不能为空" }, { status: 400 });
+  if (action === "unmonitor" && githubRepo) {
+    await disableMonitoring(githubRepo);
+    return NextResponse.json({ success: true });
   }
 
-  const repo = await upsertRepo(githubRepo.trim());
-
-  // Replace members
-  const detail = await getRepoDetail(repo.githubRepo);
-  if (detail) {
-    for (const m of detail.members) {
-      await removeRepoMember(repo.id, m.personId);
-    }
-  }
-  if (Array.isArray(members)) {
-    for (const m of members) {
-      if (m.personId && m.role) {
-        await setRepoMember(repo.id, m.personId, m.role);
-      }
-    }
-  }
-
-  const updated = await getRepoDetail(repo.githubRepo);
-  return NextResponse.json(updated);
-}
-
-export async function DELETE(request: NextRequest) {
-  if (!(await getSession())) return NextResponse.json({ message: "未登录" }, { status: 401 });
-  const githubRepo = request.nextUrl.searchParams.get("repo");
-  if (!githubRepo) return NextResponse.json({ message: "缺少 repo 参数" }, { status: 400 });
-
-  const { deleteRepo } = await import("@/lib/database");
-  const detail = await getRepoDetail(githubRepo);
-  if (!detail) return NextResponse.json({ message: "仓库不存在" }, { status: 404 });
-
-  const ok = await deleteRepo(detail.id);
-  if (!ok) return NextResponse.json({ message: "删除失败" }, { status: 500 });
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ message: "无效 action" }, { status: 400 });
 }

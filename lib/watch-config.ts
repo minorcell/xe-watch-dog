@@ -5,40 +5,24 @@ import { cache } from "react";
 import { parse } from "yaml";
 import { z } from "zod";
 
-import { isOrgDataAvailable, listRepos, type Repo } from "@/lib/database";
+import { getMonitoredRepos, isOrgDataAvailable, listRepos } from "@/lib/database";
 
 const personSchema = z.object({
   name: z.string().trim(),
   id: z.string().trim(),
 });
 
-const repositoryUrlSchema = z.string().trim().refine(
-  (value) => {
-    if (value === "") return true;
-    try {
-      const url = new URL(value);
-      const parts = url.pathname.split("/").filter(Boolean);
-      return url.protocol === "https:" && url.hostname === "github.com" && parts.length === 2;
-    } catch {
-      return false;
-    }
-  },
-  { message: "github_repo must be empty or a full GitHub repository URL" },
-);
-
 const groupSchema = z.object({
   project_name: z.string().trim().min(1),
   topic: z.string().trim().min(1),
   mentor: personSchema,
   assistant: personSchema,
-  github_repo: repositoryUrlSchema,
+  github_repo: z.string().trim(),
   github_team: z.string().trim(),
   members: z.array(personSchema),
 });
 
-const watchConfigSchema = z.object({
-  groups: z.array(groupSchema).min(1),
-});
+const watchConfigSchema = z.object({ groups: z.array(groupSchema).min(1) });
 
 export type WatchConfig = z.infer<typeof watchConfigSchema>;
 
@@ -53,13 +37,13 @@ export type ConfiguredRepository = {
 
 const configPath = path.join(process.cwd(), "app", "data", "info.yaml");
 
-/** YAML config (for import only, or fallback) */
+/** YAML config (import / fallback only) */
 export const getWatchConfig = cache(async (): Promise<WatchConfig> => {
   const source = await readFile(configPath, "utf8");
   return watchConfigSchema.parse(parse(source));
 });
 
-function parseRepoInfo(fullRepo: string) {
+function parseRepo(fullRepo: string) {
   const [owner = "", name = ""] = fullRepo.split("/");
   return {
     owner,
@@ -69,51 +53,26 @@ function parseRepoInfo(fullRepo: string) {
   };
 }
 
-/** Primary data source: reads repos from DB. Falls back to YAML. */
+/** Primary: read monitored repos from DB. Fallback: YAML. */
 export const getConfiguredRepositories = cache(async (): Promise<ConfiguredRepository[]> => {
-  const hasDbData = await isOrgDataAvailable();
-
-  if (hasDbData) {
-    const repos = await listRepos();
-    return repos.map((r: Repo) => {
-      const info = parseRepoInfo(r.githubRepo);
-      // Use first topic as label, description as topic for star tracking compatibility
-      const topic = r.topics?.join(", ") ?? r.description ?? "";
-      return {
-        ...info,
-        projectName: r.githubRepo,
-        topic,
-      };
+  // DB first
+  if (await isOrgDataAvailable()) {
+    const repos = await getMonitoredRepos();
+    return repos.map((r) => {
+      const info = parseRepo(r);
+      return { ...info, projectName: r, topic: "" };
     });
   }
 
-  // Fallback to YAML
+  // YAML fallback
   const config = await getWatchConfig();
-  return config.groups.flatMap((group) => {
-    if (!group.github_repo) return [];
-    const url = new URL(group.github_repo);
-    const [owner = "", rawName = ""] = url.pathname.split("/").filter(Boolean);
-    const name = rawName.replace(/\.git$/, "");
-    return [
-      {
-        owner,
-        name,
-        fullName: `${owner}/${name}`,
-        url: group.github_repo,
-        projectName: group.project_name,
-        topic: group.topic,
-      },
-    ];
+  return config.groups.flatMap((g) => {
+    if (!g.github_repo) return [];
+    try {
+      const url = new URL(g.github_repo);
+      const [owner = "", rawName = ""] = url.pathname.split("/").filter(Boolean);
+      const name = rawName.replace(/\.git$/, "");
+      return [{ owner, name, fullName: `${owner}/${name}`, url: g.github_repo, projectName: g.project_name, topic: g.topic }];
+    } catch { return []; }
   });
 });
-
-export async function getWatchConfigSummary() {
-  const repositories = await getConfiguredRepositories();
-  const config = await getWatchConfig().catch(() => ({ groups: [] }));
-
-  return {
-    groupCount: config.groups.length,
-    repositoryCount: repositories.length,
-    owners: [...new Set(repositories.map((repo) => repo.owner))],
-  };
-}
