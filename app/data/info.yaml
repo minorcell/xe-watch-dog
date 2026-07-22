@@ -1,0 +1,337 @@
+groups:
+  - project_name: 项目1
+    topic: 2D 游戏素材生成
+    mentor:
+      name: 杨寒星
+      id: nighca
+    assistant:
+      name: 邓军辉
+      id: minorcell
+    github_repo: https://github.com/1024XEngineer/Windup
+    github_team: game-asset-character
+    members:
+      - name: 刘峥岩
+        id: huyan1349
+      - name: 肖云涵
+        id: xyh202131
+      - name: 王超凡
+        id: xiaocheny214
+      - name: 张靖恒
+        id: johnnyzhang-eng
+  - project_name: 项目1
+    topic: 2D 游戏素材生成
+    mentor:
+      name: 杨寒星
+      id: nighca
+    assistant:
+      name: 邓军辉
+      id: minorcell
+    github_repo: https://github.com/1024XEngineer/Holonic-Asset
+    github_team: game-asset-pack
+    members:
+      - name: 黄嘉骏
+        id: adamhuang17
+      - name: 丁乾浩
+        id: JeremyD7
+      - name: 陈聚好
+        id: JuhaoChen666
+      - name: 黄俊轩
+        id: KurodaKayn
+      - name: 陈启昊
+        id: cqhasy
+  - project_name: 项目2
+    topic: AI DM：面向桌游 / 聚会游戏的智能主持人
+    mentor:
+      name: 曹明鸣
+      id: mingmingtsao
+    assistant:
+      name: 张智强
+      id: ''
+    github_repo: https://github.com/1024XEngineer/TRPG-master
+    github_team: TRPG-master
+    members:
+      - name: 李敏譞
+        id: Ximaohu-LMX
+      - name: 张家豪
+        id: JoshuaZ16
+      - name: 卢玮晨
+        id: Lyltrum
+      - name: 高俊周
+        id: WELT5350
+      - name: 黄女珊
+        id: badadal
+      - name: 凌铭辉
+        id: LMH168
+  - project_name: 项目3
+    topic: AI 英语口语陪练
+    mentor:
+      name: 霍锴
+      id: KevinHuo
+    assistant:
+      name: 童捷
+      id: ''
+    github_repo: https://github.com/1024XEngineer/UniSpeaking
+    github_team: UniSpeaking
+    members:
+      - name: 方婧
+        id: fj-sunny
+      - name: 李政翰
+        id: HansonL622
+      - name: 邓萌海
+        id: pionxe
+      - name: 俞凡
+        id: the-Louvre
+      - name: 占付龙
+        id: suerzzh
+  - project_name: 项目3
+    topic: AI 英语口语陪练
+    mentor:
+      name: 夏延吉
+      id: callmefisher
+    assistant:
+      name: 张普
+      id: ''
+    github_repo: https://github.com/1024XEngineer/XE3-ESL
+    github_team: XE3-ESL
+    members:
+      - name: 覃迦迎
+        id: jyqin0203
+      - name: 林锵
+        id: Lq0412
+      - name: 张思成
+        id: gangcaiyoule
+      - name: 黄天宇
+        id: Scorbunny2
+      - name: 智铭威
+        id: zhiwilliam1-cell
+  - project_name: 项目4
+    topic: 基于自然语言交互的、可沉淀的、可观测性指标分析工作台
+    mentor:
+      name: 江文龙
+      id: carter2000
+    assistant:
+      name: 郭浩蓝
+      id: ''
+    github_repo: https://github.com/1024XEngineer/Askio
+    github_team: XE6-06
+    members:
+      - name: 孙洋
+        id: Weiki886
+      - name: 李广民
+        id: kbkj39
+      - name: 李一航
+        id: Xbai-hang
+      - name: 张锦昱
+        id: SATA260
+      - name: 张书豪
+        id: gdemoni
+  - project_name: 项目4
+    topic: 基于自然语言交互的、可沉淀的、可观测性指标分析工作台
+    mentor:
+      name: 曹明鸣
+      id: mingmingtsao
+    assistant:
+      name: 张智强
+      id: ''
+    github_repo: https://github.com/1024XEngineer/Torchbearing
+    github_team: Torchbearing
+    members:
+      - name: 罗毅楠
+        id: Luo-root
+      - name: 魏啸
+        id: wei-xiao123
+      - name: 后健
+        id: HJan0113
+      - name: 孙进磊
+        id: spojchil
+      - name: 沈超楠
+        id: ChaonanShen
+  - project_name: 项目5
+    topic: 构建基于 AI 的线上自动化排查系统：提效、降槛与安全可控
+    mentor:
+      name: 周霆
+      id: zhoutingunl
+    assistant:
+      name: 王怀宇、药文辉
+      id: ''
+    github_repo: https://github.com/1024XEngineer/rcagpt
+    github_team: rcagpt team
+    members:
+      - name: 孙一凡
+        id: Muqian-Sun
+      - name: 张玮琦
+        id: wikibit888
+      - name: 龙依婷
+        id: yyt-05
+      - name: 徐洋
+        id: little-greenbean
+      - name: 杨欣旺
+        id: wynxing
+      - name: 刘俊飞
+        id: laitekin
+  - project_name: 项目5
+    topic: 构建基于 AI 的线上自动化排查系统：提效、降槛与安全可控
+    mentor:
+      name: 马伟伟
+      id: ma6174
+    assistant:
+      name: 杨嘉敏
+      id: ''
+    github_repo: https://github.com/1024XEngineer/SRE-Buddy
+    github_team: XE6-05
+    members:
+      - name: 张浩东
+        id: phantom5099
+      - name: 何智
+        id: Cai-Tang-www
+      - name: 罗振涛
+        id: lwbj-DE
+      - name: 姚焕增
+        id: 520wheat
+      - name: 孙思原
+        id: SiyuanSun0736
+  - project_name: 项目6
+    topic: 方言同声传译
+    mentor:
+      name: 夏延吉
+      id: callmefisher
+    assistant:
+      name: 张普
+      id: ''
+    github_repo: https://github.com/1024XEngineer/xe6-tsy
+    github_team: xe6-tsy
+    members:
+      - name: 郭文良
+        id: Gwen317
+      - name: 董胜
+        id: torbys
+      - name: 马锦润
+        id: jinyu918
+      - name: 余清源
+        id: Jerry-Yu-TeslaCoil
+      - name: 莫健弘
+        id: Leon-Dicaprio
+  - project_name: 项目7
+    topic: 3D打印智能交互场景实现
+    mentor:
+      name: 马伟伟
+      id: ma6174
+    assistant:
+      name: 杨嘉敏
+      id: ''
+    github_repo: https://github.com/1024XEngineer/LINGO-AI
+    github_team: XE6-07
+    members:
+      - name: 何林军
+        id: Voicepeak
+      - name: 苟佳鋆
+        id: MARYCOMPLEX
+      - name: 徐自力
+        id: wuaaaiioo
+      - name: 黄博
+        id: HuangBo6497
+      - name: 徐宇辰
+        id: wax0629
+  - project_name: 项目8
+    topic: xinfra统一基础设施平台
+    mentor:
+      name: 秦秀科
+      id: adam-qin
+    assistant:
+      name: 张少坡
+      id: ''
+    github_repo: https://github.com/1024XEngineer/xinfra
+    github_team: xinfra
+    members:
+      - name: 刘家辉
+        id: Hungerdream
+      - name: 何朝晖
+        id: '2311719626'
+      - name: 郭永昊
+        id: Gmaker689
+      - name: 汪大炜
+        id: qudder
+      - name: 邹婷
+        id: ztkkOip
+  - project_name: 项目9
+    topic: AI短剧创作智能体
+    mentor:
+      name: 崔文洋
+      id: Wintercom
+    assistant:
+      name: 任威风
+      id: ''
+    github_repo: https://github.com/1024XEngineer/ai-short-drama
+    github_team: ai-short-drama
+    members:
+      - name: 罗雯文
+        id: Lwwww1
+      - name: 洪轩
+        id: Haby666
+      - name: 赵文杰
+        id: dp-ing
+      - name: 王莹
+        id: Apricityyya
+      - name: 成昊楠
+        id: chinensdkcsdck
+  - project_name: 项目9
+    topic: AI短剧创作智能体
+    mentor:
+      name: 霍锴
+      id: KevinHuo
+    assistant:
+      name: 童捷
+      id: ''
+    github_repo: https://github.com/1024XEngineer/auto-drama-studio
+    github_team: auto-drama-studio
+    members:
+      - name: 李嘉豪
+        id: lijiahao818
+      - name: 韩成成
+        id: Remohdg
+      - name: 罗诗辉
+        id: buihuungan
+      - name: 齐广志
+        id: Xiean730829
+      - name: 唐枫
+        id: yechayo
+  - project_name: 项目10
+    topic: 时间管理app
+    mentor:
+      name: 罗耀燊
+      id: Lyshen
+    assistant:
+      name: 刘顺顺
+      id: ''
+    github_repo: https://github.com/1024XEngineer/XE6-15
+    github_team: XE6-15
+    members:
+      - name: 胡小辉
+        id: HuXiaohui424
+      - name: 江骏朗
+        id: JunLang-7
+      - name: 肖戍果
+        id: jing-gou
+      - name: 赵兴鹏
+        id: ZhaoXingPeng
+  - project_name: 项目10
+    topic: 时间管理app
+    mentor:
+      name: 崔文洋
+      id: Wintercom
+    assistant:
+      name: 郭浩蓝
+      id: ''
+    github_repo: https://github.com/1024XEngineer/timeflow
+    github_team: timeflow
+    members:
+      - name: 韩鲁鹏
+        id: LUPENGHAN
+      - name: 张鑫
+        id: znnnnnnn-wil
+      - name: 葛西帅
+        id: gac0812
+      - name: 于宏强
+        id: yyy-router
+      - name: 郑浩涛
+        id: Alexander-Noah
