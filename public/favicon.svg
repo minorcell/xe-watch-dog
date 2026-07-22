@@ -1,28 +1,61 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
-  <!-- Left ear -->
-  <path d="M6 6 L10 2 L12 8 L8 10 Z" fill="#1a1a1a" />
-  <!-- Right ear -->
-  <path d="M26 6 L22 2 L20 8 L24 10 Z" fill="#1a1a1a" />
-  <!-- Face -->
-  <ellipse cx="16" cy="17" rx="11" ry="10" fill="#1a1a1a" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Left ear — floppy, layered fur -->
+  <path d="M12 10 Q10 2 16 8 L20 16 Q18 22 14 20 Q10 18 12 10Z" fill="#1a1a1a" />
+  <path d="M13 11 Q12 4 16 9 L19 15 Q17 19 14 18 Q12 17 13 11Z" fill="#222" />
+  <!-- Right ear — floppy, layered fur -->
+  <path d="M52 10 Q54 2 48 8 L44 16 Q46 22 50 20 Q54 18 52 10Z" fill="#1a1a1a" />
+  <path d="M51 11 Q52 4 48 9 L45 15 Q47 19 50 18 Q52 17 51 11Z" fill="#222" />
+
+  <!-- Head base -->
+  <ellipse cx="32" cy="34" rx="20" ry="18" fill="#1a1a1a" />
+
+  <!-- Cheek fur — left and right volume -->
+  <ellipse cx="16" cy="36" rx="8" ry="7" fill="#1e1e1e" opacity="0.6" />
+  <ellipse cx="48" cy="36" rx="8" ry="7" fill="#1e1e1e" opacity="0.6" />
+
+  <!-- Forehead highlight -->
+  <ellipse cx="32" cy="26" rx="10" ry="6" fill="#222" opacity="0.5" />
+
+  <!-- Eyebrow ridges -->
+  <path d="M20 24 Q26 22 30 25" stroke="#111" stroke-width="1.5" fill="none" stroke-linecap="round" />
+  <path d="M44 24 Q38 22 34 25" stroke="#111" stroke-width="1.5" fill="none" stroke-linecap="round" />
+
+  <!-- Eyes -->
+  <circle cx="24" cy="28" r="3.5" fill="#fff" />
+  <circle cx="40" cy="28" r="3.5" fill="#fff" />
+  <!-- Pupils -->
+  <circle cx="25" cy="28" r="1.8" fill="#111" />
+  <circle cx="41" cy="28" r="1.8" fill="#111" />
+  <!-- Eye shine -->
+  <circle cx="23.5" cy="27" r="0.7" fill="#fff" />
+  <circle cx="39.5" cy="27" r="0.7" fill="#fff" />
+
+  <!-- Glasses frame -->
+  <rect x="18" y="22.5" width="12" height="10" rx="3" stroke="#fff" stroke-width="1.2" fill="none" />
+  <rect x="34" y="22.5" width="12" height="10" rx="3" stroke="#fff" stroke-width="1.2" fill="none" />
+  <!-- Bridge -->
+  <path d="M30 26 Q32 24 34 26" stroke="#fff" stroke-width="1.2" fill="none" stroke-linecap="round" />
+  <!-- Temples -->
+  <line x1="18" y1="25" x2="12" y2="22" stroke="#fff" stroke-width="0.8" stroke-linecap="round" opacity="0.7" />
+  <line x1="46" y1="25" x2="52" y2="22" stroke="#fff" stroke-width="0.8" stroke-linecap="round" opacity="0.7" />
+
   <!-- Snout -->
-  <ellipse cx="16" cy="21" rx="5.5" ry="4" fill="#333" />
+  <ellipse cx="32" cy="42" rx="11" ry="7.5" fill="#242424" />
+
   <!-- Nose -->
-  <ellipse cx="16" cy="19.5" rx="2.5" ry="1.8" fill="#0a0a0a" />
-  <!-- Left eye -->
-  <circle cx="11" cy="15" r="1.5" fill="#fff" />
-  <!-- Right eye -->
-  <circle cx="21" cy="15" r="1.5" fill="#fff" />
-  <!-- Glasses bridge -->
-  <line x1="12.5" y1="15" x2="19.5" y2="15" stroke="#fff" stroke-width="0.6" />
-  <!-- Left lens frame -->
-  <rect x="8" y="12.5" width="6" height="5" rx="2" stroke="#fff" stroke-width="0.6" fill="none" />
-  <!-- Right lens frame -->
-  <rect x="18" y="12.5" width="6" height="5" rx="2" stroke="#fff" stroke-width="0.6" fill="none" />
-  <!-- Left temple -->
-  <line x1="8" y1="13.5" x2="3" y2="11" stroke="#fff" stroke-width="0.5" />
-  <!-- Right temple -->
-  <line x1="26" y1="13.5" x2="29" y2="11" stroke="#fff" stroke-width="0.5" />
-  <!-- Tongue -->
-  <ellipse cx="16" cy="24" rx="2" ry="1.8" fill="#ff6b6b" />
+  <ellipse cx="32" cy="39" rx="4.5" ry="3.5" fill="#0a0a0a" />
+  <!-- Nose highlight -->
+  <ellipse cx="30" cy="37.5" rx="1.5" ry="1" fill="#333" opacity="0.6" />
+  <!-- Nostrils -->
+  <ellipse cx="30" cy="39.5" rx="0.8" ry="0.6" fill="#444" />
+  <ellipse cx="34" cy="39.5" rx="0.8" ry="0.6" fill="#444" />
+
+  <!-- Mouth -->
+  <path d="M27 43 Q32 47 37 43" stroke="#0a0a0a" stroke-width="0.8" fill="none" stroke-linecap="round" />
+
+  <!-- Whiskers -->
+  <line x1="20" y1="40" x2="10" y2="38" stroke="#333" stroke-width="0.4" opacity="0.5" />
+  <line x1="20" y1="42" x2="10" y2="43" stroke="#333" stroke-width="0.4" opacity="0.5" />
+  <line x1="44" y1="40" x2="54" y2="38" stroke="#333" stroke-width="0.4" opacity="0.5" />
+  <line x1="44" y1="42" x2="54" y2="43" stroke="#333" stroke-width="0.4" opacity="0.5" />
 </svg>
