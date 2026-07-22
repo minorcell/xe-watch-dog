@@ -1,26 +1,26 @@
 export function Logo({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" className={className}>
-      <path d="M12 10 Q10 2 16 8 L20 16 Q18 22 14 20 Q10 18 12 10Z" fill="currentColor" />
-      <path d="M13 11 Q12 4 16 9 L19 15 Q17 19 14 18 Q12 17 13 11Z" fill="var(--muted)" opacity="0.5" />
-      <path d="M52 10 Q54 2 48 8 L44 16 Q46 22 50 20 Q54 18 52 10Z" fill="currentColor" />
-      <path d="M51 11 Q52 4 48 9 L45 15 Q47 19 50 18 Q52 17 51 11Z" fill="var(--muted)" opacity="0.5" />
-      <ellipse cx="32" cy="34" rx="20" ry="18" fill="currentColor" />
-      <ellipse cx="32" cy="26" rx="10" ry="6" fill="var(--muted)" opacity="0.3" />
-      <circle cx="24" cy="28" r="3.5" fill="var(--background)" />
-      <circle cx="40" cy="28" r="3.5" fill="var(--background)" />
-      <circle cx="25" cy="28" r="1.8" fill="currentColor" />
-      <circle cx="41" cy="28" r="1.8" fill="currentColor" />
-      <circle cx="23.5" cy="27" r="0.7" fill="var(--background)" />
-      <circle cx="39.5" cy="27" r="0.7" fill="var(--background)" />
-      <rect x="18" y="22.5" width="12" height="10" rx="3" stroke="var(--background)" strokeWidth="1.2" fill="none" />
-      <rect x="34" y="22.5" width="12" height="10" rx="3" stroke="var(--background)" strokeWidth="1.2" fill="none" />
-      <path d="M30 26 Q32 24 34 26" stroke="var(--background)" strokeWidth="1.2" fill="none" strokeLinecap="round" />
-      <line x1="18" y1="25" x2="12" y2="22" stroke="var(--background)" strokeWidth="0.8" strokeLinecap="round" opacity="0.7" />
-      <line x1="46" y1="25" x2="52" y2="22" stroke="var(--background)" strokeWidth="0.8" strokeLinecap="round" opacity="0.7" />
-      <ellipse cx="32" cy="42" rx="11" ry="7.5" fill="var(--muted)" opacity="0.4" />
-      <ellipse cx="32" cy="39" rx="4.5" ry="3.5" fill="currentColor" />
-      <path d="M27 43 Q32 47 37 43" stroke="currentColor" strokeWidth="0.8" fill="none" strokeLinecap="round" />
+      <path d="M8 18 Q6 8 14 14 Q18 18 18 24 Q17 30 12 28 Q8 26 8 18Z" fill="#c8963e" />
+      <path d="M56 18 Q58 8 50 14 Q46 18 46 24 Q47 30 52 28 Q56 26 56 18Z" fill="#c8963e" />
+      <ellipse cx="32" cy="34" rx="18" ry="16" fill="#d4a54a" />
+      <ellipse cx="32" cy="26" rx="8" ry="5" fill="#e0b860" opacity="0.5" />
+      <circle cx="22" cy="30" r="2.5" fill="#fff" />
+      <circle cx="42" cy="30" r="2.5" fill="#fff" />
+      <circle cx="22.5" cy="30" r="1.3" fill="#3a2a0a" />
+      <circle cx="42.5" cy="30" r="1.3" fill="#3a2a0a" />
+      <circle cx="21.5" cy="29" r="0.5" fill="#fff" />
+      <circle cx="41.5" cy="29" r="0.5" fill="#fff" />
+      <rect x="13" y="19" width="14" height="11" rx="4" fill="#2a2a2a" />
+      <rect x="37" y="19" width="14" height="11" rx="4" fill="#2a2a2a" />
+      <ellipse cx="20" cy="24.5" rx="4" ry="3.5" fill="#1a1a1a" />
+      <ellipse cx="44" cy="24.5" rx="4" ry="3.5" fill="#1a1a1a" />
+      <ellipse cx="18" cy="23" rx="1.2" ry="0.8" fill="#fff" opacity="0.25" />
+      <ellipse cx="42" cy="23" rx="1.2" ry="0.8" fill="#fff" opacity="0.25" />
+      <rect x="27" y="22" width="10" height="5" rx="2" fill="#333" />
+      <ellipse cx="32" cy="44" rx="12" ry="7" fill="#e8c870" />
+      <ellipse cx="32" cy="41" rx="5" ry="3.5" fill="#2a1a08" />
+      <path d="M26 46 Q32 50 38 46" stroke="#8a6a2a" strokeWidth="0.7" fill="none" strokeLinecap="round" />
     </svg>
   );
 }
