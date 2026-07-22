@@ -24,15 +24,17 @@ export function SettingsPanel() {
       </div>
 
       {/* Tabs */}
-      <div className="mb-6 flex gap-1 rounded-lg bg-muted p-1 w-fit">
+      <div className="mb-6 flex gap-1 rounded-lg bg-muted p-1 w-fit" role="tablist" aria-label="设置面板">
         {TABS.map((t) => (
           <button
             key={t.key}
             type="button"
+            role="tab"
+            aria-selected={tab === t.key}
             onClick={() => setTab(t.key)}
             className={`inline-flex h-7 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors ${tab === t.key ? "bg-card text-foreground shadow-[0_1px_2px_rgb(0_0_0/4%)]" : "text-muted-foreground hover:text-foreground"}`}
           >
-            <t.icon className="size-3" />
+            <t.icon className="size-3" aria-hidden="true" />
             {t.label}
           </button>
         ))}

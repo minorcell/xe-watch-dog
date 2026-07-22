@@ -40,7 +40,7 @@ export function RepoDetailModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="仓库详情">
       <button type="button" className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} aria-label="关闭" />
       <div className="relative z-10 w-full max-w-md rounded-lg border bg-card p-5 shadow-[0_16px_48px_rgb(0_0_0/15%)]">
         <div className="flex items-center justify-between mb-4">

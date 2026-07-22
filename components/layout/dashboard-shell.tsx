@@ -99,11 +99,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
 function NavItem({ href, active, collapsed, icon: Icon, label }: { href: string; active: boolean; collapsed: boolean; icon: React.ComponentType<{ className?: string }>; label: string }) {
   return collapsed ? (
-    <Link href={href} title={label} className={cn("grid h-8 place-items-center rounded-md transition-colors", active ? "bg-sidebar-accent text-sidebar-foreground" : "text-sidebar-foreground hover:bg-sidebar-accent")}>
+    <Link href={href} title={label} aria-label={label} aria-current={active ? "page" : undefined} className={cn("grid h-8 place-items-center rounded-md transition-colors", active ? "bg-sidebar-accent text-sidebar-foreground" : "text-sidebar-foreground hover:bg-sidebar-accent")}>
       <Icon className="size-3.5" />
     </Link>
   ) : (
-    <Link href={href} className={cn("flex h-8 items-center gap-2.5 rounded-md px-2.5 text-xs font-medium transition-colors", active ? "bg-sidebar-accent text-sidebar-foreground" : "text-sidebar-foreground hover:bg-sidebar-accent")}>
+    <Link href={href} aria-current={active ? "page" : undefined} className={cn("flex h-8 items-center gap-2.5 rounded-md px-2.5 text-xs font-medium transition-colors", active ? "bg-sidebar-accent text-sidebar-foreground" : "text-sidebar-foreground hover:bg-sidebar-accent")}>
       <Icon className="size-3.5" />
       {label}
     </Link>

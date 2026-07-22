@@ -42,6 +42,7 @@ export function Pagination({
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
           className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-accent disabled:opacity-30"
+          aria-label="上一页"
         >
           <ChevronLeft className="size-3" />
         </button>
@@ -51,6 +52,7 @@ export function Pagination({
           onClick={() => onPageChange(page + 1)}
           disabled={page >= totalPages}
           className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-accent disabled:opacity-30"
+          aria-label="下一页"
         >
           <ChevronRight className="size-3" />
         </button>
@@ -86,6 +88,8 @@ function renderPages(current: number, total: number, onChange: (p: number) => vo
           "grid size-6 place-items-center rounded text-[11px] transition-colors",
           p === current ? "bg-foreground text-background font-medium" : "text-muted-foreground hover:bg-accent",
         )}
+        aria-label={`第 ${p} 页`}
+        aria-current={p === current ? "page" : undefined}
       >
         {p}
       </button>

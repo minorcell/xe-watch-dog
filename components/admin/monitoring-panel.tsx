@@ -98,11 +98,11 @@ export function MonitoringPanel() {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left">
             <thead><tr className="border-b bg-muted/30">
-              <th className="h-8 px-3 text-[11px] font-medium text-muted-foreground first:pl-4">仓库</th>
-              <th className="h-8 px-3 text-[11px] font-medium text-muted-foreground">描述</th>
-              <th className="h-8 px-3 text-[11px] font-medium text-muted-foreground w-16">语言</th>
-              <th className="h-8 w-24 px-3 text-[11px] font-medium text-muted-foreground text-center">监控</th>
-              <th className="h-8 w-12 px-3 text-[11px] font-medium text-muted-foreground last:pr-4" />
+              <th scope="col" className="h-8 px-3 text-[11px] font-medium text-muted-foreground first:pl-4">仓库</th>
+              <th scope="col" className="h-8 px-3 text-[11px] font-medium text-muted-foreground">描述</th>
+              <th scope="col" className="h-8 px-3 text-[11px] font-medium text-muted-foreground w-16">语言</th>
+              <th scope="col" className="h-8 w-24 px-3 text-[11px] font-medium text-muted-foreground text-center">监控</th>
+              <th scope="col" className="h-8 w-12 px-3 text-[11px] font-medium text-muted-foreground last:pr-4" />
             </tr></thead>
             <tbody>
               {sorted.length === 0 ? (

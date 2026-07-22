@@ -246,12 +246,14 @@ export function StarTable({
                     key={header.id}
                     className="h-8 whitespace-nowrap px-3 text-[11px] font-medium text-muted-foreground first:pl-4 last:pr-4"
                     style={{ width: header.column.columnDef.size }}
+                    aria-sort={header.column.getIsSorted() === "asc" ? "ascending" : header.column.getIsSorted() === "desc" ? "descending" : undefined}
                   >
                     {header.isPlaceholder ? null : header.column.getCanSort() ? (
                       <button
                         type="button"
                         className="inline-flex items-center gap-1 -ml-1.5 rounded px-1.5 py-1 transition-colors hover:bg-accent hover:text-accent-foreground"
                         onClick={header.column.getToggleSortingHandler()}
+                        aria-label={`按 ${String(header.column.columnDef.header)} 排序`}
                       >
                         {flexRender(header.column.columnDef.header, header.getContext())}
                         {header.column.getIsSorted() === "asc" ? (
