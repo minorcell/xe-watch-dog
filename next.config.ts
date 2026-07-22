@@ -1,9 +1,5 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  outputFileTracingIncludes: {
-    "/*": ["./app/data/**/*.yaml"],
-  },
-};
+const nextConfig: NextConfig = {};
 
 export default nextConfig;

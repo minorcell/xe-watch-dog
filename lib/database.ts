@@ -466,59 +466,6 @@ export async function getMonitoredRepos(): Promise<string[]> {
   return (rows as { githubRepo: string }[]).map((r) => r.githubRepo);
 }
 
-// Bulk import from YAML ────────────────────────────────────────
-
-export async function importOrgFromYaml(groups: Array<{
-  githubRepo: string;
-  mentor: { name: string; id: string };
-  assistant: { name: string; id: string };
-  members: Array<{ name: string; id: string }>;
-}>) {
-  const sql = getSql();
-  if (!sql) throw new Error("DATABASE_URL 尚未配置");
-  await ensureOrganizationSchema();
-
-  let reposCount = 0;
-  let peopleCount = 0;
-
-  for (const g of groups) {
-    if (!g.githubRepo) continue;
-    const url = new URL(g.githubRepo);
-    const [owner, rawName] = url.pathname.split("/").filter(Boolean);
-    const fullRepo = `${owner}/${rawName.replace(/\.git$/, "")}`;
-
-    // Enable monitoring + import roles
-    await sql`INSERT INTO repos (github_repo, monitoring_enabled) VALUES (${fullRepo}, true) ON CONFLICT (github_repo) DO UPDATE SET monitoring_enabled = true`;
-    reposCount++;
-
-    const ensurePerson = async (name: string, githubId: string) => {
-      if (!githubId) return;
-      const exists = await sql`SELECT github_id FROM people WHERE github_id = ${githubId}`;
-      if (exists.length > 0) {
-        await sql`UPDATE people SET real_name = ${name}, updated_at = NOW() WHERE github_id = ${githubId}`;
-      } else {
-        await sql`INSERT INTO people (github_id, real_name) VALUES (${githubId}, ${name})`;
-        peopleCount++;
-      }
-    };
-
-    await ensurePerson(g.mentor.name, g.mentor.id);
-    await ensurePerson(g.assistant.name, g.assistant.id);
-    for (const m of g.members) await ensurePerson(m.name, m.id);
-
-    // Assign roles
-    if (g.mentor.id) await sql`INSERT INTO repo_members (github_repo, github_id, role) VALUES (${fullRepo}, ${g.mentor.id}, 'mentor') ON CONFLICT (github_repo, github_id) DO UPDATE SET role = 'mentor'`;
-    if (g.assistant.id) await sql`INSERT INTO repo_members (github_repo, github_id, role) VALUES (${fullRepo}, ${g.assistant.id}, 'assistant') ON CONFLICT (github_repo, github_id) DO UPDATE SET role = 'assistant'`;
-    for (const m of g.members) {
-      if (m.id) await sql`INSERT INTO repo_members (github_repo, github_id, role) VALUES (${fullRepo}, ${m.id}, 'member') ON CONFLICT (github_repo, github_id) DO UPDATE SET role = 'member'`;
-    }
-  }
-
-  const [pc] = await sql`SELECT COUNT(*)::int AS count FROM people`;
-  const [rc] = await sql`SELECT COUNT(*)::int AS count FROM repos`;
-  return { repos: rc?.count ?? reposCount, people: pc?.count ?? peopleCount };
-}
-
 // Seed scheduler tasks ─────────────────────────────────────────
 
 export async function ensureSchedulerTasks() {
