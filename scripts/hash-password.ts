@@ -1,10 +1,17 @@
 import bcrypt from "bcryptjs";
 
-const password = process.argv[2];
+// "pnpm run -- <arg>" forwards "--" as argv[2], so skip it.
+const input = process.argv.slice(2).find((arg) => arg !== "--");
 
-if (!password) {
+if (!input) {
   console.error('Usage: pnpm auth:hash -- "your-password"');
   process.exit(1);
 }
 
-console.log(await bcrypt.hash(password, 12));
+const password = input;
+
+async function main() {
+  console.log(await bcrypt.hash(password, 12));
+}
+
+main();
