@@ -22,7 +22,7 @@ function getMobileSnapshot() {
   return window.matchMedia("(max-width: 767px)").matches;
 }
 
-export function HomeContent() {
+export function HomeContent({ isAuthenticated }: { isAuthenticated: boolean }) {
   const [loginOpen, setLoginOpen] = useState(false);
   const isMobile = useSyncExternalStore(subscribeToMobileQuery, getMobileSnapshot, () => false);
   const [showMobileNotice, setShowMobileNotice] = useState(false);
@@ -49,13 +49,22 @@ export function HomeContent() {
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <button
-            type="button"
-            onClick={handleLoginClick}
-            className="inline-flex h-8 items-center rounded-md bg-foreground px-3 text-xs font-medium text-background hover:bg-foreground/90"
-          >
-            登录
-          </button>
+          {isAuthenticated ? (
+            <Link
+              href="/dashboard"
+              className="inline-flex h-8 items-center rounded-md bg-foreground px-3 text-xs font-medium text-background hover:bg-foreground/90"
+            >
+              控制台
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={handleLoginClick}
+              className="inline-flex h-8 items-center rounded-md bg-foreground px-3 text-xs font-medium text-background hover:bg-foreground/90"
+            >
+              登录
+            </button>
+          )}
         </div>
       </motion.header>
 
@@ -93,13 +102,22 @@ export function HomeContent() {
             transition={{ delay: 0.35, duration: 0.6, ease: "easeOut" }}
             className="mt-8 sm:mt-10 flex flex-wrap items-center justify-center gap-2 sm:gap-3"
           >
-            <button
-              type="button"
-              onClick={handleLoginClick}
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-foreground px-5 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
-            >
-              进入看板 <ArrowRight className="size-4" />
-            </button>
+            {isAuthenticated ? (
+              <Link
+                href="/dashboard"
+                className="inline-flex h-10 items-center gap-2 rounded-lg bg-foreground px-5 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
+              >
+                进入控制台 <ArrowRight className="size-4" />
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={handleLoginClick}
+                className="inline-flex h-10 items-center gap-2 rounded-lg bg-foreground px-5 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
+              >
+                登录 <ArrowRight className="size-4" />
+              </button>
+            )}
             <Link
               href="https://github.com/minorcell/org-watch-dog"
               target="_blank"
@@ -134,7 +152,9 @@ export function HomeContent() {
         </div>
       </section>
 
-      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
+      {!isAuthenticated ? (
+        <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
+      ) : null}
 
       {/* Mobile notice — shown when user taps login on a small screen */}
       <AnimatePresence>
