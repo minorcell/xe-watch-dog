@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ArrowRight, Cloud, GitBranch, Globe, LineChart, Monitor, Star } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -12,18 +12,20 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 const fadeIn = { initial: { opacity: 0, y: 24 }, animate: { opacity: 1, y: 0 } };
 const fadeInSlow = { initial: { opacity: 0, y: 24 }, animate: { opacity: 1, y: 0, transition: { duration: 0.7, ease: "easeOut" as const } } };
 
+function subscribeToMobileQuery(callback: () => void) {
+  const query = window.matchMedia("(max-width: 767px)");
+  query.addEventListener("change", callback);
+  return () => query.removeEventListener("change", callback);
+}
+
+function getMobileSnapshot() {
+  return window.matchMedia("(max-width: 767px)").matches;
+}
+
 export function HomeContent() {
   const [loginOpen, setLoginOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useSyncExternalStore(subscribeToMobileQuery, getMobileSnapshot, () => false);
   const [showMobileNotice, setShowMobileNotice] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)");
-    setIsMobile(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
 
   const handleLoginClick = useCallback(() => {
     if (isMobile) {
@@ -114,7 +116,7 @@ export function HomeContent() {
           {[
             { icon: Star, title: "Star 趋势", desc: "自动采集，可视化图表与分析" },
             { icon: Globe, title: "仓库管理", desc: "实时同步组织仓库列表" },
-            { icon: LineChart, title: "调度引擎", desc: "可扩展的任务队列系统" },
+            { icon: LineChart, title: "原子同步", desc: "目录、指标与运行状态一致提交" },
             { icon: Cloud, title: "零成本托管", desc: "Vercel + Neon 免费方案，开箱即用" },
           ].map((f, i) => (
             <motion.div

@@ -30,14 +30,14 @@ export function DashboardClient({
 }) {
   const [query, setQuery] = useState("");
   const [visibility, setVisibility] = useState("all");
-  const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
+  const [selectedRepo, setSelectedRepo] = useState<{ githubId: number; fullName: string } | null>(null);
 
   const filteredLeaderboard = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return leaderboard.filter((row) => {
       const matchesQuery =
         !normalizedQuery ||
-        `${row.fullName} ${row.projectName} ${row.topic}`.toLowerCase().includes(normalizedQuery);
+        row.fullName.toLowerCase().includes(normalizedQuery);
       const matchesVisibility = visibility === "all" || row.visibility === visibility;
       return matchesQuery && matchesVisibility;
     });
@@ -88,13 +88,14 @@ export function DashboardClient({
           onQueryChange={setQuery}
           visibility={visibility}
           onVisibilityChange={setVisibility}
-          onRepoClick={(fullName) => setSelectedRepo(fullName)}
+          onRepoClick={(repository) => setSelectedRepo({ githubId: repository.githubId, fullName: repository.fullName })}
         />
       </section>
 
       {selectedRepo && (
         <RepoDetailModal
-          repoFullName={selectedRepo}
+          repositoryId={selectedRepo.githubId}
+          repositoryFullName={selectedRepo.fullName}
           chartData={chartData}
           open={true}
           onClose={() => setSelectedRepo(null)}

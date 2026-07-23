@@ -17,7 +17,7 @@ type Tab = "monitoring" | "scheduler";
 
 const TABS: { key: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { key: "monitoring", label: "监控仓库", icon: Monitor },
-  { key: "scheduler", label: "调度任务", icon: Timer },
+  { key: "scheduler", label: "同步调度", icon: Timer },
 ];
 
 export function SettingsPanel() {
@@ -27,7 +27,7 @@ export function SettingsPanel() {
     <div>
       <div className="mb-6">
         <h1 className="text-lg font-semibold tracking-tight">系统设置</h1>
-        <p className="mt-0.5 text-xs text-muted-foreground">管理监控仓库与调度任务</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">管理监控仓库与 GitHub 同步</p>
       </div>
 
       {/* Tabs */}

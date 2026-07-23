@@ -2,7 +2,7 @@ import { neon } from "@neondatabase/serverless";
 import { z } from "zod";
 
 import { getDatabaseUrl } from "@/lib/env";
-import type { RepositoryStarStats } from "@/lib/github";
+import type { GitHubRepository } from "@/lib/github";
 
 const timestampSchema = z.preprocess(
   (value) => value instanceof Date ? value.toISOString() : value,
@@ -14,362 +14,423 @@ const nullableTimestampSchema = z.preprocess(
   z.string().min(1).nullable(),
 );
 
-const snapshotRowSchema = z.object({
-  runId: z.coerce.number().int(),
+const repositoryRowSchema = z.object({
+  githubId: z.coerce.number().int().positive(),
+  fullName: z.string(),
+  htmlUrl: z.url(),
+  description: z.string().nullable(),
+  homepageUrl: z.string().nullable(),
+  topics: z.array(z.string()).nullable().transform((value) => value ?? []),
+  language: z.string().nullable(),
+  visibility: z.enum(["public", "private", "internal"]),
+  archived: z.boolean(),
+  monitoringEnabled: z.boolean(),
+  githubUpdatedAt: timestampSchema,
+  pushedAt: nullableTimestampSchema,
+  lastSeenAt: timestampSchema,
+  unavailableAt: nullableTimestampSchema,
+  createdAt: timestampSchema,
+  updatedAt: timestampSchema,
+});
+
+const syncRunRowSchema = z.object({
+  id: z.coerce.number().int().positive(),
+  trigger: z.enum(["manual", "vercel-cron", "internal-cron"]),
+  status: z.enum(["running", "completed", "failed"]),
+  startedAt: timestampSchema,
+  leaseExpiresAt: nullableTimestampSchema,
+  capturedAt: nullableTimestampSchema,
+  finishedAt: nullableTimestampSchema,
+  repositoryCount: z.coerce.number().int().nonnegative().nullable(),
+  snapshotCount: z.coerce.number().int().nonnegative().nullable(),
+  errorCode: z.string().nullable(),
+  errorMessage: z.string().nullable(),
+});
+
+const metricSnapshotRowSchema = z.object({
+  runId: z.coerce.number().int().positive(),
+  githubId: z.coerce.number().int().positive(),
   repository: z.string(),
-  projectName: z.string(),
-  topic: z.string(),
   url: z.url(),
-  visibility: z.enum(["public", "private", "unknown"]),
+  visibility: z.enum(["public", "private", "internal"]),
   capturedAt: timestampSchema,
   stars: z.coerce.number().int().nonnegative(),
   forks: z.coerce.number().int().nonnegative(),
-  openIssues: z.coerce.number().int().nonnegative(),
-  updatedAt: nullableTimestampSchema,
 });
 
-const snapshotRunSchema = z.object({
-  id: z.coerce.number().int(),
-  capturedAt: timestampSchema,
-  status: z.enum(["completed", "partial", "failed"]),
-  successCount: z.coerce.number().int().nonnegative(),
-  failureCount: z.coerce.number().int().nonnegative(),
-});
-
-export type StarSnapshot = z.infer<typeof snapshotRowSchema>;
-export type SnapshotRun = z.infer<typeof snapshotRunSchema>;
+export type Repository = z.infer<typeof repositoryRowSchema>;
+export type SyncRun = z.infer<typeof syncRunRowSchema>;
+export type MetricSnapshot = z.infer<typeof metricSnapshotRowSchema>;
+export type SyncTrigger = SyncRun["trigger"];
 
 function getSql() {
   const databaseUrl = getDatabaseUrl();
   return databaseUrl ? neon(databaseUrl) : null;
 }
 
+function requireSql() {
+  const sql = getSql();
+  if (!sql) throw new Error("DATABASE_URL 尚未配置");
+  return sql;
+}
+
+function repositoryColumns() {
+  return `
+    github_id AS "githubId",
+    full_name AS "fullName",
+    html_url AS "htmlUrl",
+    description,
+    homepage_url AS "homepageUrl",
+    topics,
+    language,
+    visibility,
+    archived,
+    monitoring_enabled AS "monitoringEnabled",
+    github_updated_at AS "githubUpdatedAt",
+    pushed_at AS "pushedAt",
+    last_seen_at AS "lastSeenAt",
+    unavailable_at AS "unavailableAt",
+    created_at AS "createdAt",
+    updated_at AS "updatedAt"
+  `;
+}
+
+function syncRunColumns() {
+  return `
+    id,
+    trigger,
+    status,
+    started_at AS "startedAt",
+    lease_expires_at AS "leaseExpiresAt",
+    captured_at AS "capturedAt",
+    finished_at AS "finishedAt",
+    repository_count AS "repositoryCount",
+    snapshot_count AS "snapshotCount",
+    error_code AS "errorCode",
+    error_message AS "errorMessage"
+  `;
+}
+
 export function isDatabaseConfigured() {
   return getDatabaseUrl() !== null;
 }
 
-export async function ensureSnapshotSchema() {
-  const sql = getSql();
-  if (!sql) throw new Error("DATABASE_URL 尚未配置");
+export async function listRepositories(input: { page: number; pageSize: number }) {
+  const sql = requireSql();
+  const offset = (input.page - 1) * input.pageSize;
+  const [counts, rows] = await Promise.all([
+    sql`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE monitoring_enabled)::int AS "monitoredCount"
+      FROM repositories
+    `,
+    sql.query(`
+      SELECT ${repositoryColumns()}
+      FROM repositories
+      ORDER BY monitoring_enabled DESC, full_name ASC
+      LIMIT $1 OFFSET $2
+    `, [input.pageSize, offset]),
+  ]);
 
-  await sql`
-    CREATE TABLE IF NOT EXISTS snapshot_runs (
-      id BIGSERIAL PRIMARY KEY,
-      captured_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      status TEXT NOT NULL CHECK (status IN ('completed', 'partial', 'failed')),
-      success_count INTEGER NOT NULL DEFAULT 0 CHECK (success_count >= 0),
-      failure_count INTEGER NOT NULL DEFAULT 0 CHECK (failure_count >= 0)
-    )
-  `;
-
-  await sql`
-    CREATE TABLE IF NOT EXISTS repository_star_snapshots (
-      run_id BIGINT NOT NULL REFERENCES snapshot_runs(id) ON DELETE CASCADE,
-      repository TEXT NOT NULL,
-      project_name TEXT NOT NULL,
-      topic TEXT NOT NULL,
-      url TEXT NOT NULL,
-      visibility TEXT NOT NULL DEFAULT 'unknown' CHECK (visibility IN ('public', 'private', 'unknown')),
-      captured_at TIMESTAMPTZ NOT NULL,
-      stars INTEGER NOT NULL CHECK (stars >= 0),
-      forks INTEGER NOT NULL CHECK (forks >= 0),
-      open_issues INTEGER NOT NULL CHECK (open_issues >= 0),
-      updated_at TIMESTAMPTZ,
-      PRIMARY KEY (run_id, repository)
-    )
-  `;
-
-  await sql`
-    CREATE INDEX IF NOT EXISTS repository_star_snapshots_repository_captured_idx
-    ON repository_star_snapshots (repository, captured_at DESC)
-  `;
-
-  await sql`
-    CREATE INDEX IF NOT EXISTS repository_star_snapshots_captured_idx
-    ON repository_star_snapshots (captured_at DESC)
-  `;
-}
-
-export async function saveStarSnapshots(stats: RepositoryStarStats[], failureCount = 0) {
-  const sql = getSql();
-  if (!sql) throw new Error("DATABASE_URL 尚未配置");
-
-  await ensureSnapshotSchema();
-
-  const status = stats.length === 0 ? "failed" : failureCount > 0 ? "partial" : "completed";
-  const [run] = await sql`
-    INSERT INTO snapshot_runs (status, success_count, failure_count)
-    VALUES (${status}, ${stats.length}, ${failureCount})
-    RETURNING id, captured_at AS "capturedAt"
-  `;
-
-  if (!run) throw new Error("无法创建快照批次");
-
-  await Promise.all(stats.map((repository) => sql`
-    INSERT INTO repository_star_snapshots (
-      run_id, repository, project_name, topic, url, visibility,
-      captured_at, stars, forks, open_issues, updated_at
-    )
-    VALUES (
-      ${run.id}, ${repository.fullName}, ${repository.projectName}, ${repository.topic},
-      ${repository.url}, ${repository.visibility}, ${run.capturedAt}, ${repository.stars},
-      ${repository.forks}, ${repository.openIssues}, ${repository.updatedAt}
-    )
-  `));
+  const count = z.object({
+    total: z.coerce.number().int().nonnegative(),
+    monitoredCount: z.coerce.number().int().nonnegative(),
+  }).parse(counts[0]);
 
   return {
-    runId: Number(run.id),
-    capturedAt: String(run.capturedAt),
+    items: z.array(repositoryRowSchema).parse(rows),
+    ...count,
+    page: input.page,
+    pageSize: input.pageSize,
   };
 }
 
-export async function getStarSnapshots(from: string, to: string): Promise<StarSnapshot[]> {
-  const sql = getSql();
-  if (!sql) return [];
+export async function getRepository(githubId: number): Promise<Repository | null> {
+  const sql = requireSql();
+  const rows = await sql.query(`
+    SELECT ${repositoryColumns()}
+    FROM repositories
+    WHERE github_id = $1
+  `, [githubId]);
+  return rows[0] ? repositoryRowSchema.parse(rows[0]) : null;
+}
 
-  await ensureSnapshotSchema();
+export async function listMonitoredRepositories(): Promise<Repository[]> {
+  const sql = requireSql();
+  const rows = await sql.query(`
+    SELECT ${repositoryColumns()}
+    FROM repositories
+    WHERE monitoring_enabled = true
+    ORDER BY full_name
+  `);
+  return z.array(repositoryRowSchema).parse(rows);
+}
 
+export async function setRepositoryMonitoring(githubId: number, enabled: boolean) {
+  const sql = requireSql();
   const rows = await sql`
-    SELECT
-      run_id AS "runId",
-      repository,
-      project_name AS "projectName",
-      topic,
-      url,
-      visibility,
-      captured_at AS "capturedAt",
-      stars,
-      forks,
-      open_issues AS "openIssues",
-      updated_at AS "updatedAt"
-    FROM repository_star_snapshots
-    WHERE captured_at >= (${from}::date AT TIME ZONE 'Asia/Shanghai')
-      AND captured_at < ((${to}::date + INTERVAL '1 day') AT TIME ZONE 'Asia/Shanghai')
-    ORDER BY captured_at ASC, repository ASC
+    UPDATE repositories
+    SET monitoring_enabled = ${enabled}, updated_at = NOW()
+    WHERE github_id = ${githubId}
+    RETURNING github_id
   `;
-
-  return z.array(snapshotRowSchema).parse(rows);
+  return rows.length > 0;
 }
 
-export async function getLatestStarSnapshots(): Promise<StarSnapshot[]> {
-  const sql = getSql();
-  if (!sql) return [];
-
-  await ensureSnapshotSchema();
-
-  const rows = await sql`
-    SELECT DISTINCT ON (repository)
-      run_id AS "runId",
-      repository,
-      project_name AS "projectName",
-      topic,
-      url,
-      visibility,
-      captured_at AS "capturedAt",
-      stars,
-      forks,
-      open_issues AS "openIssues",
-      updated_at AS "updatedAt"
-    FROM repository_star_snapshots
-    ORDER BY repository, captured_at DESC
-  `;
-
-  return z.array(snapshotRowSchema).parse(rows);
-}
-
-// ── Organization schema ───────────────────────────────────────
-
-export async function ensureOrganizationSchema() {
-  const sql = getSql();
-  if (!sql) throw new Error("DATABASE_URL 尚未配置");
-
-  await sql`
-    CREATE TABLE IF NOT EXISTS repos (
-      github_repo TEXT PRIMARY KEY,
-      monitoring_enabled BOOLEAN NOT NULL DEFAULT false,
-      description TEXT,
-      homepage_url TEXT,
-      topics TEXT[] DEFAULT '{}',
-      language TEXT,
-      visibility TEXT NOT NULL DEFAULT 'unknown',
-      archived BOOLEAN NOT NULL DEFAULT false,
-      synced_at TIMESTAMPTZ,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `;
-
-  await sql`
-    CREATE TABLE IF NOT EXISTS scheduler_tasks (
-      name TEXT PRIMARY KEY,
-      enabled BOOLEAN NOT NULL DEFAULT true,
-      description TEXT NOT NULL DEFAULT '',
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `;
-
-  await sql`
-    CREATE TABLE IF NOT EXISTS scheduler_runs (
-      id BIGSERIAL PRIMARY KEY,
-      ran_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `;
-
-  // Seed tasks
-  await sql`
-    INSERT INTO scheduler_tasks (name, enabled, description) VALUES
-      ('sync-org-repos', true, '从 GitHub 同步组织下全量仓库列表'),
-      ('sync-repo-metadata', true, '同步监控中仓库的详细元信息'),
-      ('collect-star-snapshots', true, '采集监控中仓库的 Star 快照')
-    ON CONFLICT (name) DO NOTHING
-  `;
-}
-
-// ── Types ─────────────────────────────────────────────────────
-
-export type Repo = {
-  githubRepo: string;
-  monitoringEnabled: boolean;
-  description: string | null;
-  homepageUrl: string | null;
-  topics: string[];
-  language: string | null;
-  visibility: string;
-  archived: boolean;
-  syncedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type SchedulerTask = {
-  name: string;
-  enabled: boolean;
-  description: string;
-  updatedAt: string;
-};
-
-// Scheduler ────────────────────────────────────────────────────
-
-export async function listSchedulerTasks(): Promise<SchedulerTask[]> {
-  const sql = getSql();
-  if (!sql) return [];
-  await ensureOrganizationSchema();
-  const rows = await sql`SELECT name, enabled, description, updated_at AS "updatedAt" FROM scheduler_tasks ORDER BY name`;
-  return rows as SchedulerTask[];
-}
-
-export async function setSchedulerTask(name: string, enabled: boolean): Promise<void> {
-  const sql = getSql();
-  if (!sql) throw new Error("DATABASE_URL 尚未配置");
-  await ensureOrganizationSchema();
-  await sql`UPDATE scheduler_tasks SET enabled = ${enabled}, updated_at = NOW() WHERE name = ${name}`;
-}
-
-export async function getEnabledTaskNames(): Promise<string[]> {
-  const sql = getSql();
-  if (!sql) return [];
-  await ensureOrganizationSchema();
-  const rows = await sql`SELECT name FROM scheduler_tasks WHERE enabled = true`;
-  return (rows as { name: string }[]).map((r) => r.name);
-}
-
-// Repos ────────────────────────────────────────────────────────
-
-export async function listRepos(opts?: { monitoringEnabled?: boolean }): Promise<Repo[]> {
-  const sql = getSql();
-  if (!sql) return [];
-  await ensureOrganizationSchema();
-  const filter = opts?.monitoringEnabled !== undefined
-    ? sql`WHERE monitoring_enabled = ${opts.monitoringEnabled}`
-    : sql``;
-  const rows = await sql`
-    SELECT github_repo AS "githubRepo", monitoring_enabled AS "monitoringEnabled",
-           description, homepage_url AS "homepageUrl", topics, language,
-           visibility, archived, synced_at AS "syncedAt",
-           created_at AS "createdAt", updated_at AS "updatedAt"
-    FROM repos ${filter} ORDER BY github_repo
-  `;
-  return (rows as Repo[]).map((r) => ({ ...r, topics: r.topics ?? [] }));
-}
-
-export async function enableMonitoring(githubRepo: string): Promise<void> {
-  const sql = getSql();
-  if (!sql) throw new Error("DATABASE_URL 尚未配置");
-  await ensureOrganizationSchema();
-  await sql`INSERT INTO repos (github_repo, monitoring_enabled) VALUES (${githubRepo}, true) ON CONFLICT (github_repo) DO UPDATE SET monitoring_enabled = true`;
-}
-
-export async function disableMonitoring(githubRepo: string): Promise<void> {
-  const sql = getSql();
-  if (!sql) throw new Error("DATABASE_URL 尚未配置");
-  await ensureOrganizationSchema();
-  await sql`DELETE FROM repos WHERE github_repo = ${githubRepo}`;
-}
-
-export async function bulkUpsertOrgRepos(repos: Array<{
-  githubRepo: string; description: string | null; homepageUrl: string | null;
-  topics: string[]; language: string | null; visibility: string; archived: boolean;
-}>): Promise<{ added: number; updated: number }> {
-  const sql = getSql();
-  if (!sql) throw new Error("DATABASE_URL 尚未配置");
-  await ensureOrganizationSchema();
-  let added = 0, updated = 0;
-  for (const r of repos) {
-    const [e] = await sql`SELECT github_repo FROM repos WHERE github_repo = ${r.githubRepo}`;
-    if (e) {
-      updated++;
-      await sql`UPDATE repos SET description=${r.description}, homepage_url=${r.homepageUrl}, topics=${r.topics}, language=${r.language}, visibility=${r.visibility}, archived=${r.archived}, synced_at=NOW() WHERE github_repo=${r.githubRepo}`;
-    } else {
-      added++;
-      await sql`INSERT INTO repos (github_repo, monitoring_enabled, description, homepage_url, topics, language, visibility, archived) VALUES (${r.githubRepo}, false, ${r.description}, ${r.homepageUrl}, ${r.topics}, ${r.language}, ${r.visibility}, ${r.archived})`;
-    }
+export class SyncAlreadyRunningError extends Error {
+  constructor() {
+    super("已有 GitHub 同步正在运行");
+    this.name = "SyncAlreadyRunningError";
   }
-  return { added, updated };
 }
 
-export async function syncRepoMetadata(githubRepo: string, metadata: {
-  description: string | null; homepageUrl: string | null; topics: string[];
-  language: string | null; visibility: string; archived: boolean;
-}): Promise<void> {
-  const sql = getSql();
-  if (!sql) throw new Error("DATABASE_URL 尚未配置");
-  await ensureOrganizationSchema();
-  await sql`UPDATE repos SET description=${metadata.description}, homepage_url=${metadata.homepageUrl}, topics=${metadata.topics}, language=${metadata.language}, visibility=${metadata.visibility}, archived=${metadata.archived}, synced_at=NOW() WHERE github_repo=${githubRepo}`;
+export async function beginSyncRun(trigger: SyncTrigger): Promise<SyncRun> {
+  const sql = requireSql();
+
+  try {
+    const [, inserted] = await sql.transaction([
+      sql`
+        UPDATE github_sync_runs
+        SET
+          status = 'failed',
+          finished_at = NOW(),
+          lease_expires_at = NULL,
+          error_code = 'lease_expired',
+          error_message = '同步进程未在租约期限内完成'
+        WHERE status = 'running' AND lease_expires_at <= NOW()
+      `,
+      sql`
+        INSERT INTO github_sync_runs (trigger, status, lease_expires_at)
+        VALUES (${trigger}, 'running', NOW() + (30 * INTERVAL '1 minute'))
+        RETURNING ${sql.unsafe(syncRunColumns())}
+      `,
+    ]);
+
+    const run = inserted[0];
+    if (!run) throw new Error("无法创建同步运行记录");
+    return syncRunRowSchema.parse(run);
+  } catch (error) {
+    if ((error as { code?: string }).code === "23505") {
+      throw new SyncAlreadyRunningError();
+    }
+    throw error;
+  }
 }
 
-export async function getMonitoredRepos(): Promise<string[]> {
-  const sql = getSql();
-  if (!sql) return [];
-  await ensureOrganizationSchema();
-  const rows = await sql`SELECT github_repo AS "githubRepo" FROM repos WHERE monitoring_enabled = true ORDER BY github_repo`;
-  return (rows as { githubRepo: string }[]).map((r) => r.githubRepo);
-}
-
-export async function isOrgDataAvailable(): Promise<boolean> {
-  const sql = getSql();
-  if (!sql) return false;
-  await ensureOrganizationSchema();
-  const [row] = await sql`SELECT COUNT(*)::int AS count FROM repos`;
-  return (row?.count ?? 0) > 0;
-}
-
-export async function getLatestSnapshotRun(): Promise<SnapshotRun | null> {
-  const sql = getSql();
-  if (!sql) return null;
-
-  await ensureSnapshotSchema();
-
-  const [row] = await sql`
-    SELECT
-      id,
-      captured_at AS "capturedAt",
-      status,
-      success_count AS "successCount",
-      failure_count AS "failureCount"
-    FROM snapshot_runs
-    ORDER BY captured_at DESC
-    LIMIT 1
+export async function failSyncRun(runId: number, errorCode: string, errorMessage: string) {
+  const sql = requireSql();
+  await sql`
+    UPDATE github_sync_runs
+    SET
+      status = 'failed',
+      finished_at = NOW(),
+      lease_expires_at = NULL,
+      error_code = ${errorCode},
+      error_message = ${errorMessage.slice(0, 500)}
+    WHERE id = ${runId} AND status = 'running'
   `;
+}
 
-  return row ? snapshotRunSchema.parse(row) : null;
+export async function commitGitHubSync(
+  runId: number,
+  repositories: GitHubRepository[],
+  capturedAt: string,
+): Promise<SyncRun> {
+  const sql = requireSql();
+  const payload = JSON.stringify(repositories.map((repository) => ({
+    github_id: repository.githubId,
+    full_name: repository.fullName,
+    html_url: repository.htmlUrl,
+    description: repository.description,
+    homepage_url: repository.homepageUrl,
+    topics: repository.topics,
+    language: repository.language,
+    visibility: repository.visibility,
+    archived: repository.archived,
+    github_updated_at: repository.githubUpdatedAt,
+    pushed_at: repository.pushedAt,
+    stars: repository.stars,
+    forks: repository.forks,
+  })));
+  const githubIds = JSON.stringify(repositories.map((repository) => repository.githubId));
+
+  const [, , , completed] = await sql.transaction([
+    sql`
+      INSERT INTO repositories (
+        github_id, full_name, html_url, description, homepage_url, topics, language,
+        visibility, archived, github_updated_at, pushed_at, last_seen_at
+      )
+      SELECT
+        input.github_id, input.full_name, input.html_url, input.description,
+        input.homepage_url, input.topics, input.language, input.visibility,
+        input.archived, input.github_updated_at, input.pushed_at, ${capturedAt}
+      FROM jsonb_to_recordset(${payload}::jsonb) AS input(
+        github_id BIGINT,
+        full_name TEXT,
+        html_url TEXT,
+        description TEXT,
+        homepage_url TEXT,
+        topics TEXT[],
+        language TEXT,
+        visibility TEXT,
+        archived BOOLEAN,
+        github_updated_at TIMESTAMPTZ,
+        pushed_at TIMESTAMPTZ,
+        stars INTEGER,
+        forks INTEGER
+      )
+      ON CONFLICT (github_id) DO UPDATE SET
+        full_name = EXCLUDED.full_name,
+        html_url = EXCLUDED.html_url,
+        description = EXCLUDED.description,
+        homepage_url = EXCLUDED.homepage_url,
+        topics = EXCLUDED.topics,
+        language = EXCLUDED.language,
+        visibility = EXCLUDED.visibility,
+        archived = EXCLUDED.archived,
+        github_updated_at = EXCLUDED.github_updated_at,
+        pushed_at = EXCLUDED.pushed_at,
+        last_seen_at = EXCLUDED.last_seen_at,
+        unavailable_at = NULL,
+        updated_at = CASE
+          WHEN ROW(
+            repositories.full_name,
+            repositories.html_url,
+            repositories.description,
+            repositories.homepage_url,
+            repositories.topics,
+            repositories.language,
+            repositories.visibility,
+            repositories.archived,
+            repositories.github_updated_at,
+            repositories.pushed_at,
+            repositories.unavailable_at
+          ) IS DISTINCT FROM ROW(
+            EXCLUDED.full_name,
+            EXCLUDED.html_url,
+            EXCLUDED.description,
+            EXCLUDED.homepage_url,
+            EXCLUDED.topics,
+            EXCLUDED.language,
+            EXCLUDED.visibility,
+            EXCLUDED.archived,
+            EXCLUDED.github_updated_at,
+            EXCLUDED.pushed_at,
+            NULL
+          ) THEN NOW()
+          ELSE repositories.updated_at
+        END
+    `,
+    sql`
+      UPDATE repositories
+      SET unavailable_at = COALESCE(unavailable_at, ${capturedAt}), updated_at = NOW()
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements_text(${githubIds}::jsonb) AS visible(github_id)
+        WHERE visible.github_id::BIGINT = repositories.github_id
+      )
+        AND unavailable_at IS NULL
+    `,
+    sql`
+      INSERT INTO repository_metric_snapshots (run_id, github_id, stars, forks)
+      SELECT ${runId}, input.github_id, input.stars, input.forks
+      FROM jsonb_to_recordset(${payload}::jsonb) AS input(
+        github_id BIGINT,
+        full_name TEXT,
+        html_url TEXT,
+        description TEXT,
+        homepage_url TEXT,
+        topics TEXT[],
+        language TEXT,
+        visibility TEXT,
+        archived BOOLEAN,
+        github_updated_at TIMESTAMPTZ,
+        pushed_at TIMESTAMPTZ,
+        stars INTEGER,
+        forks INTEGER
+      )
+      JOIN repositories ON repositories.github_id = input.github_id
+      WHERE repositories.monitoring_enabled = true
+        AND repositories.unavailable_at IS NULL
+    `,
+    sql`
+      UPDATE github_sync_runs
+      SET
+        status = 'completed',
+        lease_expires_at = NULL,
+        captured_at = ${capturedAt},
+        finished_at = NOW(),
+        repository_count = ${repositories.length},
+        snapshot_count = (
+          SELECT COUNT(*)::int
+          FROM repository_metric_snapshots
+          WHERE run_id = ${runId}
+        ),
+        error_code = NULL,
+        error_message = NULL
+      WHERE id = ${runId} AND status = 'running'
+      RETURNING ${sql.unsafe(syncRunColumns())}
+    `,
+  ]);
+
+  const run = completed[0];
+  if (!run) throw new Error("同步运行已不再处于 running 状态");
+  return syncRunRowSchema.parse(run);
+}
+
+export async function getLatestSyncRun(input?: { completedOnly?: boolean }): Promise<SyncRun | null> {
+  const sql = requireSql();
+  const statusFilter = input?.completedOnly ? "WHERE status = 'completed'" : "";
+  const rows = await sql.query(`
+    SELECT ${syncRunColumns()}
+    FROM github_sync_runs
+    ${statusFilter}
+    ORDER BY started_at DESC
+    LIMIT 1
+  `);
+  return rows[0] ? syncRunRowSchema.parse(rows[0]) : null;
+}
+
+export async function getMetricSnapshots(from: string, to: string): Promise<MetricSnapshot[]> {
+  const sql = requireSql();
+  const rows = await sql`
+    SELECT
+      snapshots.run_id AS "runId",
+      snapshots.github_id AS "githubId",
+      repositories.full_name AS repository,
+      repositories.html_url AS url,
+      repositories.visibility,
+      runs.captured_at AS "capturedAt",
+      snapshots.stars,
+      snapshots.forks
+    FROM repository_metric_snapshots snapshots
+    JOIN github_sync_runs runs ON runs.id = snapshots.run_id
+    JOIN repositories ON repositories.github_id = snapshots.github_id
+    WHERE runs.status = 'completed'
+      AND runs.captured_at >= (${from}::date AT TIME ZONE 'Asia/Shanghai')
+      AND runs.captured_at < ((${to}::date + INTERVAL '1 day') AT TIME ZONE 'Asia/Shanghai')
+    ORDER BY runs.captured_at ASC, repositories.full_name ASC
+  `;
+  return z.array(metricSnapshotRowSchema).parse(rows);
+}
+
+export async function getLatestMetricSnapshots(): Promise<MetricSnapshot[]> {
+  const sql = requireSql();
+  const rows = await sql`
+    SELECT DISTINCT ON (snapshots.github_id)
+      snapshots.run_id AS "runId",
+      snapshots.github_id AS "githubId",
+      repositories.full_name AS repository,
+      repositories.html_url AS url,
+      repositories.visibility,
+      runs.captured_at AS "capturedAt",
+      snapshots.stars,
+      snapshots.forks
+    FROM repository_metric_snapshots snapshots
+    JOIN github_sync_runs runs ON runs.id = snapshots.run_id AND runs.status = 'completed'
+    JOIN repositories ON repositories.github_id = snapshots.github_id
+    ORDER BY snapshots.github_id, runs.captured_at DESC
+  `;
+  return z.array(metricSnapshotRowSchema).parse(rows);
 }

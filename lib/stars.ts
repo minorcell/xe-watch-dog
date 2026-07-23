@@ -1,58 +1,72 @@
-import { getLatestSnapshotRun, getLatestStarSnapshots, getStarSnapshots, isDatabaseConfigured, saveStarSnapshots } from "@/lib/database";
+import {
+  getLatestMetricSnapshots,
+  getLatestSyncRun,
+  getMetricSnapshots,
+  isDatabaseConfigured,
+  listMonitoredRepositories,
+} from "@/lib/database";
 import type { DateRange } from "@/lib/date-range";
-import { fetchAllRepositoryStarStats } from "@/lib/github";
-import { getConfiguredRepositories } from "@/lib/watch-config";
-
-export async function collectStarSnapshots() {
-  if (!isDatabaseConfigured()) throw new Error("DATABASE_URL 尚未配置");
-
-  const repositories = await getConfiguredRepositories();
-  const result = await fetchAllRepositoryStarStats(repositories);
-
-  const run = await saveStarSnapshots(result.stats, result.errors.length);
-
-  return {
-    saved: result.stats.length,
-    failed: result.errors.length,
-    errors: result.errors,
-    capturedAt: run.capturedAt,
-  };
-}
 
 export async function getStarDashboardData(range: DateRange) {
-  const repositories = await getConfiguredRepositories();
-  const [snapshots, latestSnapshots, latestRun] = await Promise.all([
-    getStarSnapshots(range.from, range.to),
-    getLatestStarSnapshots(),
-    getLatestSnapshotRun(),
+  if (!isDatabaseConfigured()) {
+    return {
+      leaderboard: [],
+      chartData: [],
+      chartRepositories: [],
+      databaseConfigured: false,
+      repositoryCount: 0,
+      successfulRepositoryCount: 0,
+      staleRepositoryCount: 0,
+      totalStars: 0,
+      totalGrowth: 0,
+      lastSnapshotAt: null,
+      latestRun: null,
+      latestSuccessfulRun: null,
+      rangeLabel: range.label,
+    };
+  }
+
+  const [repositories, snapshots, latestSnapshots, latestRun, latestSuccessfulRun] = await Promise.all([
+    listMonitoredRepositories(),
+    getMetricSnapshots(range.from, range.to),
+    getLatestMetricSnapshots(),
+    getLatestSyncRun(),
+    getLatestSyncRun({ completedOnly: true }),
   ]);
 
-  const snapshotsByRepository = new Map<string, typeof snapshots>();
-  snapshots.forEach((snapshot) => {
-    const current = snapshotsByRepository.get(snapshot.repository) ?? [];
+  const snapshotsByRepository = new Map<number, typeof snapshots>();
+  for (const snapshot of snapshots) {
+    const current = snapshotsByRepository.get(snapshot.githubId) ?? [];
     current.push(snapshot);
-    snapshotsByRepository.set(snapshot.repository, current);
-  });
+    snapshotsByRepository.set(snapshot.githubId, current);
+  }
 
-  const latestByRepository = new Map(latestSnapshots.map((snapshot) => [snapshot.repository, snapshot]));
+  const latestByRepository = new Map(
+    latestSnapshots.map((snapshot) => [snapshot.githubId, snapshot]),
+  );
 
   const leaderboard = repositories.map((repository) => {
-    const current = latestByRepository.get(repository.fullName);
-    const history = snapshotsByRepository.get(repository.fullName) ?? [];
+    const current = latestByRepository.get(repository.githubId);
+    const history = snapshotsByRepository.get(repository.githubId) ?? [];
     const growth = history.length >= 2 ? history.at(-1)!.stars - history[0].stars : null;
+    const freshness = !current
+      ? "never" as const
+      : current.runId === latestSuccessfulRun?.id
+        ? "current" as const
+        : "stale" as const;
 
     return {
+      githubId: repository.githubId,
       fullName: repository.fullName,
-      projectName: repository.projectName,
-      topic: repository.topic,
-      url: current?.url ?? repository.url,
-      visibility: current?.visibility ?? "unknown",
+      url: repository.htmlUrl,
+      visibility: repository.visibility,
+      archived: repository.archived,
+      unavailableAt: repository.unavailableAt,
       stars: current?.stars ?? null,
       growth,
       forks: current?.forks ?? null,
-      openIssues: current?.openIssues ?? null,
-      updatedAt: current?.updatedAt ?? null,
       capturedAt: current?.capturedAt ?? null,
+      freshness,
     };
   }).sort((left, right) => (right.stars ?? -1) - (left.stars ?? -1));
 
@@ -60,28 +74,37 @@ export async function getStarDashboardData(range: DateRange) {
     .filter((repository) => repository.stars !== null)
     .map((repository) => repository.fullName);
 
-  const chartTimestamps = [...new Set(snapshots.map((snapshot) => snapshot.capturedAt))];
-  const chartData = chartTimestamps.map((capturedAt) => {
+  const snapshotsByTimestamp = new Map<string, Map<string, number>>();
+  for (const snapshot of snapshots) {
+    const point = snapshotsByTimestamp.get(snapshot.capturedAt) ?? new Map<string, number>();
+    point.set(snapshot.repository, snapshot.stars);
+    snapshotsByTimestamp.set(snapshot.capturedAt, point);
+  }
+
+  const chartData = [...snapshotsByTimestamp.entries()].map(([capturedAt, values]) => {
     const point: Record<string, string | number | null> = { capturedAt };
-    chartRepositories.forEach((repository) => {
-      point[repository] = snapshots.find((snapshot) => snapshot.capturedAt === capturedAt && snapshot.repository === repository)?.stars ?? null;
-    });
+    for (const repository of chartRepositories) {
+      point[repository] = values.get(repository) ?? null;
+    }
     return point;
   });
 
-  const repositoriesWithSnapshots = leaderboard.filter((repository) => repository.capturedAt !== null);
+  const currentRepositories = leaderboard.filter((repository) => repository.freshness === "current");
+  const staleRepositories = leaderboard.filter((repository) => repository.freshness === "stale");
 
   return {
     leaderboard,
     chartData,
     chartRepositories,
-    databaseConfigured: isDatabaseConfigured(),
+    databaseConfigured: true,
     repositoryCount: repositories.length,
-    successfulRepositoryCount: repositoriesWithSnapshots.length,
+    successfulRepositoryCount: currentRepositories.length,
+    staleRepositoryCount: staleRepositories.length,
     totalStars: leaderboard.reduce((total, repository) => total + (repository.stars ?? 0), 0),
     totalGrowth: leaderboard.reduce((total, repository) => total + (repository.growth ?? 0), 0),
-    failedRepositoryCount: latestRun?.failureCount ?? 0,
-    lastSnapshotAt: latestRun?.capturedAt ?? latestSnapshots.at(-1)?.capturedAt ?? null,
+    lastSnapshotAt: latestSuccessfulRun?.capturedAt ?? null,
+    latestRun,
+    latestSuccessfulRun,
     rangeLabel: range.label,
   };
 }

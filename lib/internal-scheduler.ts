@@ -1,7 +1,6 @@
 import cron from "node-cron";
 
-import { buildSchedulerTasks, recordRun } from "@/lib/scheduler-tasks";
-import { runScheduler } from "@/lib/scheduler";
+import { runGitHubSync } from "@/lib/github-sync";
 
 let started = false;
 
@@ -15,9 +14,11 @@ export function startInternalScheduler() {
 
   cron.schedule(schedule, async () => {
     console.log("[scheduler] Running...");
-    const tasks = await buildSchedulerTasks();
-    const results = await runScheduler(tasks);
-    await recordRun();
-    console.log("[scheduler] Done.", JSON.stringify(results));
-  });
+    try {
+      const run = await runGitHubSync("internal-cron");
+      console.log("[scheduler] Done.", JSON.stringify({ runId: run.id, status: run.status }));
+    } catch (error) {
+      console.error("[scheduler] Failed.", error);
+    }
+  }, { timezone: "UTC", noOverlap: true });
 }

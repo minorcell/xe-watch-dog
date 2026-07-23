@@ -1,10 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Clock, LoaderCircle } from "lucide-react";
 
-import { Switch } from "@/components/ui/switch";
-import type { SchedulerTask } from "@/lib/database";
+import type { SyncRun } from "@/lib/database";
+
+type SchedulerStatus = {
+  run: SyncRun | null;
+  mode: "vercel" | "self-hosted";
+  schedule: string;
+  timezone: string;
+};
 
 function timeAgo(date: string) {
   const diff = Date.now() - new Date(date).getTime();
@@ -16,74 +22,48 @@ function timeAgo(date: string) {
   return `${Math.floor(hours / 24)} 天前`;
 }
 
-export function SchedulerPanel() {
-  const [tasks, setTasks] = useState<SchedulerTask[]>([]);
-  const [lastRun, setLastRun] = useState<{ ranAt: string; mode?: string } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [toggling, setToggling] = useState<Set<string>>(new Set());
+function runStatus(run: SyncRun | null) {
+  if (!run) return "尚未执行";
+  if (run.status === "running") return "运行中";
+  if (run.status === "failed") return "失败";
+  return "已完成";
+}
 
-  const fetchData = useCallback(async () => {
-    const [tRes, lRes] = await Promise.all([
-      fetch("/api/admin/scheduler"),
-      fetch("/api/admin/scheduler/last-run"),
-    ]);
-    if (tRes.ok) setTasks(await tRes.json());
-    if (lRes.ok) setLastRun(await lRes.json());
-    setLoading(false);
+export function SchedulerPanel() {
+  const [status, setStatus] = useState<SchedulerStatus | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/admin/github-sync-runs/latest").then(async (response) => {
+      if (active && response.ok) setStatus(await response.json());
+    });
+    return () => { active = false; };
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  async function toggle(name: string, current: boolean) {
-    setToggling((prev) => new Set(prev).add(name));
-    await fetch("/api/admin/scheduler", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, enabled: !current }),
-    });
-    setTasks((prev) => prev.map((t) => t.name === name ? { ...t, enabled: !current } : t));
-    setToggling((prev) => { const next = new Set(prev); next.delete(name); return next; });
-  }
-
-  if (loading) {
+  if (!status) {
     return <div className="py-16 text-center"><LoaderCircle className="mx-auto size-5 animate-spin text-muted-foreground" /><p className="mt-3 text-xs text-muted-foreground">加载中…</p></div>;
   }
 
-  const mode = lastRun?.mode === "vercel" ? "Vercel Cron" : "内置 node-cron";
+  const mode = status.mode === "vercel" ? "Vercel Cron" : "内置 node-cron";
 
   return (
-    <div className="grid gap-6">
-      {/* Task list */}
-      <div className="overflow-hidden rounded-lg border bg-card">
-        <div className="divide-y divide-border/50">
-          {tasks.map((t) => (
-            <div key={t.name} className="flex items-center justify-between px-5 py-4">
-              <div>
-                <p className="text-xs font-medium font-mono">{t.name}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">{t.description}</p>
-              </div>
-              <Switch checked={t.enabled} loading={toggling.has(t.name)} onCheckedChange={() => toggle(t.name, t.enabled)} aria-label={t.description} size="default" />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Run status */}
-      <div className="rounded-lg border bg-card p-5">
-        <h3 className="text-xs font-semibold mb-3 flex items-center gap-2">
-          <Clock className="size-3.5 text-muted-foreground" />
-          运行状态
-        </h3>
-        <div className="grid gap-2 text-xs">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">调度模式</span>
-            <span className="font-mono">{mode}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">上次执行</span>
-            <span>{lastRun ? timeAgo(lastRun.ranAt) : "尚未执行"}</span>
-          </div>
-        </div>
+    <div className="rounded-lg border bg-card p-5">
+      <h3 className="mb-4 flex items-center gap-2 text-xs font-semibold">
+        <Clock className="size-3.5 text-muted-foreground" />
+        GitHub 同步
+      </h3>
+      <div className="grid gap-3 text-xs">
+        <div className="flex justify-between"><span className="text-muted-foreground">调度模式</span><span>{mode}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Cron</span><span className="font-mono">{status.schedule}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">时区</span><span className="font-mono">{status.timezone}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">最近状态</span><span>{runStatus(status.run)}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">上次执行</span><span>{status.run ? timeAgo(status.run.startedAt) : "尚未执行"}</span></div>
+        {status.run?.status === "completed" && (
+          <div className="flex justify-between"><span className="text-muted-foreground">采集结果</span><span>{status.run.snapshotCount ?? 0} / {status.run.repositoryCount ?? 0}</span></div>
+        )}
+        {status.run?.status === "failed" && status.run.errorMessage && (
+          <p className="border-t pt-3 text-red-600 dark:text-red-500">{status.run.errorMessage}</p>
+        )}
       </div>
     </div>
   );

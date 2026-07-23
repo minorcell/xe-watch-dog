@@ -18,7 +18,7 @@ export function RefreshButton({ disabled, onRefresh }: { disabled: boolean; onRe
     setIsPending(true);
 
     try {
-      const response = await fetch("/api/stars/snapshot", { method: "POST" });
+      const response = await fetch("/api/admin/github-sync-runs", { method: "POST" });
       const result = await response.json();
 
       if (!response.ok) {
@@ -26,10 +26,7 @@ export function RefreshButton({ disabled, onRefresh }: { disabled: boolean; onRe
         return;
       }
 
-      const snapshot = result.tasks?.find((t: { task: string }) => t.task === "collect-star-snapshots");
-      const msg = snapshot?.message ?? "采集完成";
-      const isError = snapshot ? !snapshot.ok : false;
-      toast(msg, isError ? "error" : "success");
+      toast(`已同步 ${result.repositoryCount} 个仓库，写入 ${result.snapshotCount} 条快照`, "success");
       await onRefresh();
     } catch {
       toast("无法连接采集服务", "error");

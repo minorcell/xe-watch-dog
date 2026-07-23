@@ -10,7 +10,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Search } from "lucide-react";
 
 import { ExportButton } from "@/components/stars/export-button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -47,11 +47,13 @@ function GrowthValue({ value }: { value: number | null }) {
 }
 
 function VisibilityBadge({ visibility }: { visibility: StarLeaderboardRow["visibility"] }) {
+  if (visibility === "internal")
+    return <span className="inline-flex rounded px-1.5 py-0.5 text-[11px] text-muted-foreground">内部</span>;
   if (visibility === "private")
     return <span className="inline-flex rounded px-1.5 py-0.5 text-[11px] text-muted-foreground">私有</span>;
   if (visibility === "public")
     return <span className="inline-flex rounded px-1.5 py-0.5 text-[11px] text-muted-foreground">公开</span>;
-  return <span className="text-[11px] text-muted-foreground/60">未采集</span>;
+  return null;
 }
 
 export function StarTable({
@@ -69,7 +71,7 @@ export function StarTable({
   onQueryChange: (v: string) => void;
   visibility: string;
   onVisibilityChange: (v: string) => void;
-  onRepoClick?: (fullName: string) => void;
+  onRepoClick?: (repository: StarLeaderboardRow) => void;
 }) {
   const [sorting, setSorting] = useState<SortingState>([{ id: "stars", desc: true }]);
 
@@ -78,7 +80,7 @@ export function StarTable({
     return data.filter((row) => {
       const matchesQuery =
         !normalizedQuery ||
-        `${row.fullName} ${row.projectName} ${row.topic}`.toLowerCase().includes(normalizedQuery);
+        row.fullName.toLowerCase().includes(normalizedQuery);
       const matchesVisibility = visibility === "all" || row.visibility === visibility;
       return matchesQuery && matchesVisibility;
     });
@@ -111,9 +113,6 @@ export function StarTable({
             >
               {shortName(row.original.fullName)}
             </Link>
-            <p className="mt-0.5 max-w-72 truncate text-[11px] text-muted-foreground">
-              {row.original.topic}
-            </p>
           </div>
         ),
       },
@@ -124,12 +123,6 @@ export function StarTable({
         cell: ({ getValue }) => (
           <VisibilityBadge visibility={getValue<StarLeaderboardRow["visibility"]>()} />
         ),
-      },
-      {
-        accessorKey: "projectName",
-        header: "项目",
-        size: 96,
-        cell: ({ getValue }) => <span className="text-xs">{String(getValue())}</span>,
       },
       {
         accessorKey: "stars",
@@ -181,16 +174,24 @@ export function StarTable({
       {
         id: "status",
         header: "状态",
-        size: 72,
-        cell: ({ row }) =>
-          row.original.capturedAt ? (
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <i className="size-1.5 rounded-full bg-emerald-500" />
-              已采集
-            </span>
-          ) : (
-            <span className="text-[11px] text-muted-foreground/60">暂无快照</span>
-          ),
+        size: 88,
+        cell: ({ row }) => {
+          if (row.original.unavailableAt) {
+            return <span className="text-[11px] text-amber-600 dark:text-amber-500">当前不可见</span>;
+          }
+          if (row.original.freshness === "current") {
+            return (
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <i className="size-1.5 rounded-full bg-emerald-500" />
+                本次已采集
+              </span>
+            );
+          }
+          if (row.original.freshness === "stale") {
+            return <span className="text-[11px] text-amber-600 dark:text-amber-500">历史数据</span>;
+          }
+          return <span className="text-[11px] text-muted-foreground/60">暂无快照</span>;
+        },
         enableSorting: false,
       },
     ],
@@ -229,7 +230,7 @@ export function StarTable({
             <SelectItem value="all">全部可见性</SelectItem>
             <SelectItem value="public">公开仓库</SelectItem>
             <SelectItem value="private">私有仓库</SelectItem>
-            <SelectItem value="unknown">暂无快照</SelectItem>
+            <SelectItem value="internal">内部仓库</SelectItem>
           </SelectContent>
         </Select>
         <span className="text-[11px] text-muted-foreground">
@@ -283,7 +284,7 @@ export function StarTable({
                 <tr
                   key={row.id}
                   className="border-b border-border/50 transition-colors last:border-0 hover:bg-muted/30 cursor-pointer"
-                  onClick={() => onRepoClick?.(row.original.fullName)}
+                  onClick={() => onRepoClick?.(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <td

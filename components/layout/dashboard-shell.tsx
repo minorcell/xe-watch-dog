@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { ChevronLeft, ChevronRight, Settings, Star } from "lucide-react";
 
@@ -13,16 +13,19 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "watchdog-sidebar-collapsed";
+const subscribeToHydration = () => () => {};
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(subscribeToHydration, () => true, () => false);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored !== null) setCollapsed(stored === "1");
-    setMounted(true);
+    const frame = requestAnimationFrame(() => {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored !== null) setCollapsed(stored === "1");
+    });
+    return () => cancelAnimationFrame(frame);
   }, []);
 
   const toggle = useCallback(() => {

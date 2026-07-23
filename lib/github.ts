@@ -1,203 +1,134 @@
 import { z } from "zod";
 
-import { getGitHubEnv } from "@/lib/env";
-import type { ConfiguredRepository } from "@/lib/watch-config";
-
-// ── Repo stats (Star tracking) ────────────────────────────────
-
 const githubRepositorySchema = z.object({
-  full_name: z.string(),
+  id: z.number().int().positive(),
+  name: z.string().min(1),
+  full_name: z.string().min(3),
   html_url: z.url(),
   description: z.string().nullable(),
+  homepage: z.string().nullable(),
+  topics: z.array(z.string()),
+  language: z.string().nullable(),
+  visibility: z.enum(["public", "private", "internal"]),
+  archived: z.boolean(),
   stargazers_count: z.number().int().nonnegative(),
   forks_count: z.number().int().nonnegative(),
-  open_issues_count: z.number().int().nonnegative(),
-  archived: z.boolean(),
-  private: z.boolean(),
   updated_at: z.iso.datetime(),
+  pushed_at: z.iso.datetime().nullable(),
 });
 
-export type RepositoryStarStats = {
+const githubRepositoryPageSchema = z.array(githubRepositorySchema);
+
+export type GitHubRepository = {
+  githubId: number;
+  name: string;
   fullName: string;
-  url: string;
-  projectName: string;
-  topic: string;
+  htmlUrl: string;
   description: string | null;
+  homepageUrl: string | null;
+  topics: string[];
+  language: string | null;
+  visibility: "public" | "private" | "internal";
+  archived: boolean;
   stars: number;
   forks: number;
-  openIssues: number;
-  archived: boolean;
-  private: boolean;
-  visibility: "public" | "private";
-  updatedAt: string;
+  githubUpdatedAt: string;
+  pushedAt: string | null;
 };
 
-export type RepositoryFetchError = {
-  fullName: string;
-  projectName: string;
-  message: string;
-  status: number;
-};
+type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
-function githubHeaders(): HeadersInit {
-  const { GITHUB_TOKEN } = getGitHubEnv();
-  const headers: HeadersInit = {
+export class GitHubApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "GitHubApiError";
+  }
+}
+
+function githubHeaders(token: string): HeadersInit {
+  return {
     Accept: "application/vnd.github+json",
+    Authorization: `Bearer ${token}`,
     "X-GitHub-Api-Version": "2022-11-28",
     "User-Agent": "org-watch-dog",
   };
-  if (GITHUB_TOKEN) headers.Authorization = `Bearer ${GITHUB_TOKEN}`;
-  return headers;
 }
 
 function getErrorMessage(status: number, fallback: string) {
   if (status === 401) return "GitHub Token 无效";
-  if (status === 403) return "GitHub API 请求受限";
-  if (status === 404) return "仓库不存在或当前 Token 无权访问";
+  if (status === 403) return "GitHub API 请求受限或 Token 权限不足";
+  if (status === 404) return "GitHub 组织不存在或当前 Token 无权访问";
   return fallback || `GitHub API 请求失败 (${status})`;
 }
 
-export async function fetchRepositoryStarStats(repository: ConfiguredRepository): Promise<RepositoryStarStats> {
-  const response = await fetch(
-    `https://api.github.com/repos/${encodeURIComponent(repository.owner)}/${encodeURIComponent(repository.name)}`,
-    { headers: githubHeaders(), cache: "no-store" },
-  );
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => null) as { message?: string } | null;
-    throw Object.assign(new Error(getErrorMessage(response.status, body?.message ?? "")), {
-      status: response.status,
-    });
-  }
-
-  const data = githubRepositorySchema.parse(await response.json());
-
-  return {
-    fullName: data.full_name,
-    url: data.html_url,
-    projectName: repository.projectName,
-    topic: repository.topic,
-    description: data.description,
-    stars: data.stargazers_count,
-    forks: data.forks_count,
-    openIssues: data.open_issues_count,
-    archived: data.archived,
-    private: data.private,
-    visibility: data.private ? "private" : "public",
-    updatedAt: data.updated_at,
-  };
-}
-
-export async function fetchAllRepositoryStarStats(repositories: ConfiguredRepository[]) {
-  const stats: RepositoryStarStats[] = [];
-  const errors: RepositoryFetchError[] = [];
-  const batchSize = 5;
-
-  for (let index = 0; index < repositories.length; index += batchSize) {
-    const batch = repositories.slice(index, index + batchSize);
-    const results = await Promise.allSettled(batch.map(fetchRepositoryStarStats));
-
-    results.forEach((result, resultIndex) => {
-      const repository = batch[resultIndex];
-      if (!repository) return;
-      if (result.status === "fulfilled") {
-        stats.push(result.value);
-      } else {
-        const error = result.reason as Error & { status?: number };
-        errors.push({
-          fullName: repository.fullName,
-          projectName: repository.projectName,
-          message: error.message,
-          status: error.status ?? 500,
-        });
-      }
-    });
-  }
-
-  return { stats, errors };
-}
-
-// ── Org repos list (paginated) ────────────────────────────────
-
-export type OrgRepoSummary = {
-  githubRepo: string;
-  description: string | null;
-  homepageUrl: string | null;
-  topics: string[];
-  language: string | null;
-  visibility: string;
-  archived: boolean;
-};
-
-export async function fetchOrgRepos(org: string): Promise<OrgRepoSummary[]> {
-  const all: OrgRepoSummary[] = [];
-  let page = 1;
+export async function fetchOrganizationRepositories(input: {
+  org: string;
+  token: string;
+  fetcher?: Fetcher;
+}): Promise<GitHubRepository[]> {
+  const fetcher = input.fetcher ?? fetch;
+  const repositories: GitHubRepository[] = [];
   const perPage = 100;
 
-  while (true) {
-    const url = `https://api.github.com/orgs/${encodeURIComponent(org)}/repos?per_page=${perPage}&page=${page}&sort=full_name`;
-    const response = await fetch(url, { headers: githubHeaders(), cache: "no-store" });
+  for (let page = 1; ; page++) {
+    const url = new URL(`https://api.github.com/orgs/${encodeURIComponent(input.org)}/repos`);
+    url.searchParams.set("type", "all");
+    url.searchParams.set("sort", "full_name");
+    url.searchParams.set("direction", "asc");
+    url.searchParams.set("per_page", String(perPage));
+    url.searchParams.set("page", String(page));
+
+    const response = await fetcher(url, {
+      headers: githubHeaders(input.token),
+      cache: "no-store",
+    });
 
     if (!response.ok) {
-      throw new Error(`GitHub API error ${response.status} listing org repos`);
+      const body = await response.json().catch(() => null) as { message?: string } | null;
+      throw new GitHubApiError(
+        getErrorMessage(response.status, body?.message ?? ""),
+        response.status,
+      );
     }
 
-    const data = await response.json() as Array<{
-      full_name: string;
-      description: string | null;
-      homepage: string | null;
-      topics: string[];
-      language: string | null;
-      visibility: string;
-      archived: boolean;
-    }>;
-
-    for (const r of data) {
-      all.push({
-        githubRepo: r.full_name,
-        description: r.description ?? null,
-        homepageUrl: r.homepage ?? null,
-        topics: r.topics ?? [],
-        language: r.language ?? null,
-        visibility: r.visibility ?? "unknown",
-        archived: r.archived ?? false,
+    const pageRepositories = githubRepositoryPageSchema.parse(await response.json());
+    for (const repository of pageRepositories) {
+      repositories.push({
+        githubId: repository.id,
+        name: repository.name,
+        fullName: repository.full_name,
+        htmlUrl: repository.html_url,
+        description: repository.description,
+        homepageUrl: repository.homepage || null,
+        topics: repository.topics,
+        language: repository.language,
+        visibility: repository.visibility,
+        archived: repository.archived,
+        stars: repository.stargazers_count,
+        forks: repository.forks_count,
+        githubUpdatedAt: repository.updated_at,
+        pushedAt: repository.pushed_at,
       });
     }
 
-    if (data.length < perPage) break;
-    page++;
+    if (pageRepositories.length < perPage) break;
   }
 
-  return all;
+  const ids = new Set<number>();
+  const fullNames = new Set<string>();
+  for (const repository of repositories) {
+    if (ids.has(repository.githubId)) {
+      throw new Error(`GitHub 返回重复仓库 ID: ${repository.githubId}`);
+    }
+    if (fullNames.has(repository.fullName)) {
+      throw new Error(`GitHub 返回重复仓库名称: ${repository.fullName}`);
+    }
+    ids.add(repository.githubId);
+    fullNames.add(repository.fullName);
+  }
+
+  return repositories;
 }
-
-// ── Repo metadata for sync ────────────────────────────────────
-
-export type RepoMetadata = {
-  description: string | null;
-  homepageUrl: string | null;
-  topics: string[];
-  language: string | null;
-  visibility: string;
-  archived: boolean;
-};
-
-export async function fetchRepoMetadata(owner: string, repo: string): Promise<RepoMetadata> {
-  const response = await fetch(
-    `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
-    { headers: githubHeaders(), cache: "no-store" },
-  );
-  if (!response.ok) throw new Error(`GitHub API error ${response.status} for ${owner}/${repo}`);
-
-  const data = await response.json() as {
-    description: string | null; homepage: string | null; topics: string[];
-    language: string | null; visibility: string; archived: boolean;
-  };
-
-  return {
-    description: data.description ?? null, homepageUrl: data.homepage ?? null,
-    topics: data.topics ?? [], language: data.language ?? null,
-    visibility: data.visibility ?? "unknown", archived: data.archived ?? false,
-  };
-}
-

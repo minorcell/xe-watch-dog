@@ -10,6 +10,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "tsx --test lib/**/*.test.ts",
+    "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs",
     "auth:hash": "npx tsx scripts/hash-password.ts",
     "auth:hash-b64": "npx tsx scripts/hash-password-b64.ts",
     "auth:secret": "npx tsx scripts/generate-secret.ts"

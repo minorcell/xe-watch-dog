@@ -3,7 +3,6 @@
 import { useCallback, useState } from "react";
 import {
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -142,7 +141,7 @@ export function StarChart({
                 padding: "8px 10px",
               }}
             />
-            {renderedRepos.map((repository, index) => {
+            {renderedRepos.map((repository) => {
               const isHovered = hoveredRepo === repository;
               const colorIndex = activeRepos.indexOf(repository) % palette.length;
               return (

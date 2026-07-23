@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AlertTriangle, CalendarClock, Database, FolderGit2, Star, TrendingUp } from "lucide-react";
 
@@ -10,6 +10,21 @@ import { RefreshButton } from "@/components/stars/refresh-button";
 import { RangeSelector } from "@/components/stars/range-selector";
 import { formatSnapshotDate, resolveDateRange } from "@/lib/date-range";
 import type { StarDashboardData } from "@/lib/stars";
+
+async function requestDashboard(range: ReturnType<typeof resolveDateRange>) {
+  const params = new URLSearchParams();
+  if (range.preset) params.set("preset", String(range.preset));
+  else {
+    params.set("from", range.from);
+    params.set("to", range.to);
+  }
+  const response = await fetch(`/api/stars/dashboard?${params.toString()}`);
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.message ?? "加载失败");
+  }
+  return await response.json() as StarDashboardData;
+}
 
 function StatTile({
   label,
@@ -42,40 +57,35 @@ export function DashboardPageClient() {
   const searchParams = useSearchParams();
   const [data, setData] = useState<StarDashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  const range = resolveDateRange({
-    preset: searchParams.get("preset") ?? undefined,
-    from: searchParams.get("from") ?? undefined,
-    to: searchParams.get("to") ?? undefined,
-  });
+  const preset = searchParams.get("preset") ?? undefined;
+  const from = searchParams.get("from") ?? undefined;
+  const to = searchParams.get("to") ?? undefined;
+  const range = useMemo(() => resolveDateRange({ preset, from, to }), [preset, from, to]);
 
   const fetchData = useCallback(async () => {
     setError(null);
     try {
-      const params = new URLSearchParams();
-      if (range.preset) params.set("preset", String(range.preset));
-      else {
-        params.set("from", range.from);
-        params.set("to", range.to);
-      }
-      const res = await fetch(`/api/stars/dashboard?${params.toString()}`);
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.message ?? "加载失败");
-      }
-      const json = await res.json();
-      setData(json);
+      setData(await requestDashboard(range));
     } catch (err) {
       setError(err instanceof Error ? err.message : "加载失败");
-    } finally {
-      setLoading(false);
     }
-  }, [range.preset, range.from, range.to]);
+  }, [range]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    let active = true;
+    void requestDashboard(range)
+      .then((result) => {
+        if (active) {
+          setData(result);
+          setError(null);
+        }
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError instanceof Error ? requestError.message : "加载失败");
+      });
+    return () => { active = false; };
+  }, [range]);
 
   if (error) {
     return (
@@ -135,16 +145,22 @@ export function DashboardPageClient() {
         </div>
       ) : null}
 
-      {data.failedRepositoryCount > 0 ? (
+      {data.latestRun?.status === "failed" ? (
         <div
           className="mb-4 flex items-center gap-2.5 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-red-600 dark:text-red-500"
           role="alert"
         >
           <AlertTriangle className="size-3.5 shrink-0" />
           <p>
-            最近一次采集中有 {data.failedRepositoryCount} 个仓库未写入快照，请检查仓库名称或 Token
-            的访问权限。
+            最近一次 GitHub 同步失败：{data.latestRun.errorMessage ?? "请检查 GitHub Token、网络和数据库状态"}
           </p>
+        </div>
+      ) : null}
+
+      {data.staleRepositoryCount > 0 ? (
+        <div className="mb-4 flex items-center gap-2.5 rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-600 dark:text-amber-500" role="status">
+          <AlertTriangle className="size-3.5 shrink-0" />
+          <p>{data.staleRepositoryCount} 个仓库当前仅有历史快照。</p>
         </div>
       ) : null}
 
@@ -166,7 +182,7 @@ export function DashboardPageClient() {
         />
         <StatTile
           icon={FolderGit2}
-          label="已有快照"
+          label="最近成功批次"
           value={String(data.successfulRepositoryCount)}
           sub={`/ ${data.repositoryCount}`}
         />

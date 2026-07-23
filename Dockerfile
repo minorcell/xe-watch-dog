@@ -28,6 +28,7 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/database ./database
+COPY --from=builder /app/scripts/migrate.mjs ./scripts/migrate.mjs
 COPY docker-entrypoint.sh ./
 
 RUN chmod +x docker-entrypoint.sh

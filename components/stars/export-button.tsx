@@ -6,15 +6,14 @@ import type { StarLeaderboardRow } from "@/lib/stars";
 
 export function ExportButton({ rows, range }: { rows: StarLeaderboardRow[]; range: string }) {
   function exportCsv() {
-    const header = ["排名", "项目", "仓库", "当前 Star", `${range}增长`, "Fork", "状态"];
+    const header = ["排名", "仓库", "当前 Star", `${range}增长`, "Fork", "状态"];
     const values = rows.map((row, index) => [
       String(index + 1),
-      row.projectName,
       row.fullName,
       row.stars === null ? "" : String(row.stars),
       row.growth === null ? "" : String(row.growth),
       row.forks === null ? "" : String(row.forks),
-      row.capturedAt ? "已采集" : "暂无快照",
+      row.unavailableAt ? "当前不可见" : row.freshness === "current" ? "本次已采集" : row.freshness === "stale" ? "历史数据" : "暂无快照",
     ]);
     const csv = [header, ...values]
       .map((line) => line.map((value) => `"${value.replaceAll('"', '""')}"`).join(","))

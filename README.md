@@ -8,7 +8,7 @@
 
 - **Star 看板** — 趋势图表 + 排行榜，时间范围切换、搜索、可见性筛选、CSV 导出
 - **监控管理** — 实时同步组织仓库列表，按需开关监控
-- **调度引擎** — 可扩展任务队列，元信息同步、快照采集独立开关
+- **原子同步** — 仓库目录、监控指标和运行状态在一次 GitHub 同步中提交
 - **管理员认证** — bcrypt + JWT HttpOnly Cookie
 
 ## 快速开始
@@ -18,6 +18,7 @@ pnpm install
 pnpm auth:secret
 pnpm auth:hash -- "your-password"
 cp .env.example .env.local   # 编辑填入环境变量
+pnpm db:migrate              # 应用版本化数据库迁移
 pnpm dev                     # http://localhost:3000
 ```
 
