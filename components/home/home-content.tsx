@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Cloud, GitBranch, Globe, LineChart, Star } from "lucide-react";
-import { motion } from "motion/react";
+import { ArrowRight, Cloud, GitBranch, Globe, LineChart, Monitor, Star } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 
 import { LoginModal } from "@/components/auth/login-modal";
 import { Logo } from "@/components/layout/logo";
@@ -14,11 +14,29 @@ const fadeInSlow = { initial: { opacity: 0, y: 24 }, animate: { opacity: 1, y: 0
 
 export function HomeContent() {
   const [loginOpen, setLoginOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showMobileNotice, setShowMobileNotice] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  const handleLoginClick = useCallback(() => {
+    if (isMobile) {
+      setShowMobileNotice(true);
+    } else {
+      setLoginOpen(true);
+    }
+  }, [isMobile]);
 
   return (
     <div className="h-dvh overflow-hidden bg-background text-foreground">
       <motion.header
-        className="flex h-14 items-center justify-between px-6"
+        className="flex h-14 items-center justify-between px-4 sm:px-6"
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
@@ -31,7 +49,7 @@ export function HomeContent() {
           <ThemeToggle />
           <button
             type="button"
-            onClick={() => setLoginOpen(true)}
+            onClick={handleLoginClick}
             className="inline-flex h-8 items-center rounded-md bg-foreground px-3 text-xs font-medium text-background hover:bg-foreground/90"
           >
             登录
@@ -41,19 +59,19 @@ export function HomeContent() {
 
       <section
         className="relative flex flex-col items-center justify-center px-4 text-center"
-        style={{ height: "calc(100dvh - 3.5rem)" }}
+        style={{ minHeight: "calc(100dvh - 3.5rem)" }}
       >
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--primary)_0%,transparent_70%)] opacity-[0.04] dark:opacity-[0.07]" />
 
         <div className="relative z-10 max-w-lg">
           <motion.div {...fadeInSlow}>
-            <Logo className="mx-auto mb-10 size-24" />
+            <Logo className="mx-auto mb-6 sm:mb-10 size-16 sm:size-24" />
           </motion.div>
 
           <motion.h1
             {...fadeIn}
             transition={{ delay: 0.15, duration: 0.6, ease: "easeOut" }}
-            className="text-4xl font-bold tracking-tight sm:text-5xl"
+            className="text-3xl font-bold tracking-tight sm:text-5xl"
           >
             用数据
             <span className="text-primary">看懂</span>
@@ -63,7 +81,7 @@ export function HomeContent() {
           <motion.p
             {...fadeIn}
             transition={{ delay: 0.25, duration: 0.6, ease: "easeOut" }}
-            className="mx-auto mt-6 max-w-md text-[15px] leading-relaxed text-muted-foreground"
+            className="mx-auto mt-4 sm:mt-6 max-w-md text-[14px] sm:text-[15px] leading-relaxed text-muted-foreground"
           >
             从 GitHub 拉取仓库数据、追踪 Star 趋势、分析团队指标。
           </motion.p>
@@ -71,11 +89,11 @@ export function HomeContent() {
           <motion.div
             {...fadeIn}
             transition={{ delay: 0.35, duration: 0.6, ease: "easeOut" }}
-            className="mt-10 flex items-center justify-center gap-3"
+            className="mt-8 sm:mt-10 flex flex-wrap items-center justify-center gap-2 sm:gap-3"
           >
             <button
               type="button"
-              onClick={() => setLoginOpen(true)}
+              onClick={handleLoginClick}
               className="inline-flex h-10 items-center gap-2 rounded-lg bg-foreground px-5 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
             >
               进入看板 <ArrowRight className="size-4" />
@@ -92,7 +110,7 @@ export function HomeContent() {
           </motion.div>
         </div>
 
-        <div className="relative z-10 mt-20 grid max-w-3xl gap-4 sm:grid-cols-4">
+        <div className="relative z-10 mt-12 sm:mt-20 grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
           {[
             { icon: Star, title: "Star 趋势", desc: "自动采集，可视化图表与分析" },
             { icon: Globe, title: "仓库管理", desc: "实时同步组织仓库列表" },
@@ -115,6 +133,43 @@ export function HomeContent() {
       </section>
 
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
+
+      {/* Mobile notice — shown when user taps login on a small screen */}
+      <AnimatePresence>
+        {showMobileNotice && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <motion.button
+              type="button"
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              onClick={() => setShowMobileNotice(false)}
+              aria-label="关闭"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            />
+            <motion.div
+              className="relative z-10 mx-4 w-full max-w-xs rounded-xl border bg-card p-6 shadow-[0_24px_80px_rgb(0_0_0/20%)] text-center"
+              initial={{ opacity: 0, scale: 0.96, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+            >
+              <Monitor className="mx-auto mb-4 size-8 text-muted-foreground" />
+              <h2 className="text-sm font-semibold">请在 PC 端打开</h2>
+              <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
+                Watchdog 是一个数据密集型管理后台，建议在桌面端访问以获得最佳体验。
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowMobileNotice(false)}
+                className="mt-5 inline-flex h-9 w-full items-center justify-center rounded-lg bg-foreground text-xs font-medium text-background transition-colors hover:bg-foreground/90"
+              >
+                知道了
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
