@@ -1,0 +1,189 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { AlertTriangle, CalendarClock, Database, FolderGit2, Star, TrendingUp } from "lucide-react";
+
+import { DashboardClient } from "@/components/dashboard/dashboard-client";
+import { StatTiles } from "@/components/dashboard/stat-tiles";
+import { RefreshButton } from "@/components/stars/refresh-button";
+import { RangeSelector } from "@/components/stars/range-selector";
+import { formatSnapshotDate, resolveDateRange } from "@/lib/date-range";
+import type { StarDashboardData } from "@/lib/stars";
+
+function StatTile({
+  label,
+  value,
+  sub,
+  icon: Icon,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  icon: React.ComponentType<{ className?: string }>;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border bg-card px-4 py-3">
+      <Icon className="size-4 shrink-0 text-muted-foreground" />
+      <div className="min-w-0">
+        <p className="text-[11px] text-muted-foreground">{label}</p>
+        <p className="text-lg font-semibold tabular-nums leading-snug">
+          {value}
+          {sub ? (
+            <span className="ml-1 text-xs font-normal text-muted-foreground">{sub}</span>
+          ) : null}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export function DashboardPageClient() {
+  const searchParams = useSearchParams();
+  const [data, setData] = useState<StarDashboardData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const range = resolveDateRange({
+    preset: searchParams.get("preset") ?? undefined,
+    from: searchParams.get("from") ?? undefined,
+    to: searchParams.get("to") ?? undefined,
+  });
+
+  const fetchData = useCallback(async () => {
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (range.preset) params.set("preset", String(range.preset));
+      else {
+        params.set("from", range.from);
+        params.set("to", range.to);
+      }
+      const res = await fetch(`/api/stars/dashboard?${params.toString()}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message ?? "加载失败");
+      }
+      const json = await res.json();
+      setData(json);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "加载失败");
+    } finally {
+      setLoading(false);
+    }
+  }, [range.preset, range.from, range.to]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-24">
+        <p className="text-sm text-muted-foreground">{error}</p>
+        <button
+          type="button"
+          onClick={fetchData}
+          className="inline-flex h-8 items-center rounded-md bg-foreground px-3 text-xs font-medium text-background hover:bg-foreground/90"
+        >
+          重试
+        </button>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="size-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" />
+      </div>
+    );
+  }
+
+  const hasGrowthData = data.leaderboard.some((r) => r.growth !== null);
+
+  return (
+    <div className="mx-auto w-full">
+      {/* Header */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight">Star 看板</h1>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            已配置仓库的 Star 趋势与最新快照排行
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <RangeSelector value={range} />
+          <RefreshButton disabled={!data.databaseConfigured} onRefresh={fetchData} />
+        </div>
+      </div>
+
+      {/* Warnings */}
+      {!data.databaseConfigured ? (
+        <div
+          className="mb-4 flex items-center gap-2.5 rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-600 dark:text-amber-500"
+          role="status"
+        >
+          <Database className="size-3.5 shrink-0" />
+          <p>
+            快照存储尚未配置。配置{" "}
+            <code className="rounded bg-amber-500/10 px-1 py-px font-mono text-[11px]">
+              DATABASE_URL
+            </code>{" "}
+            后即可采集并查看仓库数据。
+          </p>
+        </div>
+      ) : null}
+
+      {data.failedRepositoryCount > 0 ? (
+        <div
+          className="mb-4 flex items-center gap-2.5 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-red-600 dark:text-red-500"
+          role="alert"
+        >
+          <AlertTriangle className="size-3.5 shrink-0" />
+          <p>
+            最近一次采集中有 {data.failedRepositoryCount} 个仓库未写入快照，请检查仓库名称或 Token
+            的访问权限。
+          </p>
+        </div>
+      ) : null}
+
+      {/* Stat tiles */}
+      <StatTiles>
+        <StatTile
+          icon={Star}
+          label="当前 Star 总数"
+          value={data.totalStars.toLocaleString("zh-CN")}
+        />
+        <StatTile
+          icon={TrendingUp}
+          label={range.label + "增长"}
+          value={
+            hasGrowthData
+              ? `${data.totalGrowth >= 0 ? "+" : ""}${data.totalGrowth.toLocaleString("zh-CN")}`
+              : "-"
+          }
+        />
+        <StatTile
+          icon={FolderGit2}
+          label="已有快照"
+          value={String(data.successfulRepositoryCount)}
+          sub={`/ ${data.repositoryCount}`}
+        />
+        <StatTile
+          icon={CalendarClock}
+          label="最近快照"
+          value={formatSnapshotDate(data.lastSnapshotAt)}
+        />
+      </StatTiles>
+
+      {/* Chart + Table */}
+      <DashboardClient
+        chartData={data.chartData}
+        chartRepositories={data.chartRepositories}
+        leaderboard={data.leaderboard}
+        rangeLabel={range.label}
+      />
+    </div>
+  );
+}

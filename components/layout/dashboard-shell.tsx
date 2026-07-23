@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { ChevronLeft, ChevronRight, Settings, Star } from "lucide-react";
 
 import { Logo } from "@/components/layout/logo";
-import { PageLoadingBar } from "@/components/layout/page-loading-bar";
 import { PageTransitionProvider, usePageNavigate } from "@/components/layout/page-transition-context";
 import { ToastProvider } from "@/components/ui/toast";
 
@@ -40,7 +39,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     return (
       <ToastProvider>
         <PageTransitionProvider>
-          <PageLoadingBar />
           <div className="flex h-dvh min-h-dvh overflow-hidden">
             <aside className="flex w-52 shrink-0 flex-col border-r border-border bg-sidebar" />
             <div className="flex min-w-0 flex-1 flex-col">
@@ -55,7 +53,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <ToastProvider>
       <PageTransitionProvider>
-        <PageLoadingBar />
         <div className="flex h-dvh min-h-dvh overflow-hidden">
           <aside className={cn("flex shrink-0 flex-col border-r border-border bg-sidebar transition-[width] duration-200", collapsed ? "w-12" : "w-52")}>
             {/* Brand */}

@@ -2,12 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { LoaderCircle, RefreshCw } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 import { useToast } from "@/components/ui/toast";
 
-export function RefreshButton({ disabled }: { disabled: boolean }) {
-  const router = useRouter();
+export function RefreshButton({ disabled, onRefresh }: { disabled: boolean; onRefresh: () => Promise<void> }) {
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
   const mountedRef = useRef(true);
@@ -32,7 +30,7 @@ export function RefreshButton({ disabled }: { disabled: boolean }) {
       const msg = snapshot?.message ?? "采集完成";
       const isError = snapshot ? !snapshot.ok : false;
       toast(msg, isError ? "error" : "success");
-      router.refresh();
+      await onRefresh();
     } catch {
       toast("无法连接采集服务", "error");
     } finally {
