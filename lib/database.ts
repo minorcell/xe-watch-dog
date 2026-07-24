@@ -1,6 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import { z } from "zod";
 
+import type { SnapshotGranularity } from "@/lib/date-range";
 import { getDatabaseUrl } from "@/lib/env";
 import type { GitHubRepository } from "@/lib/github";
 
@@ -392,25 +393,70 @@ export async function getLatestSyncRun(input?: { completedOnly?: boolean }): Pro
   return rows[0] ? syncRunRowSchema.parse(rows[0]) : null;
 }
 
-export async function getMetricSnapshots(from: string, to: string): Promise<MetricSnapshot[]> {
+export async function listSyncRuns(input: { page: number; pageSize: number }) {
+  const sql = requireSql();
+  const offset = (input.page - 1) * input.pageSize;
+  const [counts, rows] = await Promise.all([
+    sql`SELECT COUNT(*)::int AS total FROM github_sync_runs`,
+    sql.query(`
+      SELECT ${syncRunColumns()}
+      FROM github_sync_runs
+      ORDER BY started_at DESC
+      LIMIT $1 OFFSET $2
+    `, [input.pageSize, offset]),
+  ]);
+
+  return {
+    items: z.array(syncRunRowSchema).parse(rows),
+    total: z.object({ total: z.coerce.number().int().nonnegative() }).parse(counts[0]).total,
+    page: input.page,
+    pageSize: input.pageSize,
+  };
+}
+
+export async function getMetricSnapshots(
+  from: string,
+  to: string,
+  granularity: SnapshotGranularity = "day",
+): Promise<MetricSnapshot[]> {
   const sql = requireSql();
   const rows = await sql`
+    WITH bucketed AS (
+      SELECT
+        snapshots.run_id,
+        snapshots.github_id,
+        repositories.full_name AS repository,
+        repositories.html_url AS url,
+        repositories.visibility,
+        runs.captured_at,
+        date_trunc(${granularity}, runs.captured_at AT TIME ZONE 'Asia/Shanghai') AS bucket,
+        snapshots.stars,
+        snapshots.forks
+      FROM repository_metric_snapshots snapshots
+      JOIN github_sync_runs runs ON runs.id = snapshots.run_id
+      JOIN repositories ON repositories.github_id = snapshots.github_id
+      WHERE runs.status = 'completed'
+        AND runs.captured_at >= (${from}::date AT TIME ZONE 'Asia/Shanghai')
+        AND runs.captured_at < ((${to}::date + INTERVAL '1 day') AT TIME ZONE 'Asia/Shanghai')
+    ), latest_in_bucket AS (
+      SELECT *, ROW_NUMBER() OVER (
+        PARTITION BY bucket, github_id
+        ORDER BY captured_at DESC, run_id DESC
+      ) AS row_number
+      FROM bucketed
+    )
     SELECT
-      snapshots.run_id AS "runId",
-      snapshots.github_id AS "githubId",
-      repositories.full_name AS repository,
-      repositories.html_url AS url,
-      repositories.visibility,
-      runs.captured_at AS "capturedAt",
-      snapshots.stars,
-      snapshots.forks
-    FROM repository_metric_snapshots snapshots
-    JOIN github_sync_runs runs ON runs.id = snapshots.run_id
-    JOIN repositories ON repositories.github_id = snapshots.github_id
-    WHERE runs.status = 'completed'
-      AND runs.captured_at >= (${from}::date AT TIME ZONE 'Asia/Shanghai')
-      AND runs.captured_at < ((${to}::date + INTERVAL '1 day') AT TIME ZONE 'Asia/Shanghai')
-    ORDER BY runs.captured_at ASC, repositories.full_name ASC
+      run_id AS "runId",
+      github_id AS "githubId",
+      repository,
+      url,
+      visibility,
+      (bucket AT TIME ZONE 'Asia/Shanghai') AS "capturedAt",
+      stars,
+      forks
+    FROM latest_in_bucket
+    WHERE row_number = 1
+    ORDER BY bucket ASC, repository ASC
   `;
   return z.array(metricSnapshotRowSchema).parse(rows);
 }

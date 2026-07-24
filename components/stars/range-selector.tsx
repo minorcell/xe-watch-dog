@@ -2,15 +2,30 @@
 
 import { useRef } from "react";
 
-import type { DateRange } from "@/lib/date-range";
+import {
+  SNAPSHOT_GRANULARITY_OPTIONS,
+  type DateRange,
+  type SnapshotGranularity,
+} from "@/lib/date-range";
 import { cn } from "@/lib/utils";
 import { usePageNavigate } from "@/components/layout/page-transition-context";
 
 const presets = [7, 30, 90] as const;
 
-export function RangeSelector({ value }: { value: DateRange }) {
+export function RangeSelector({ value, granularity }: { value: DateRange; granularity: SnapshotGranularity }) {
   const navigate = usePageNavigate();
   const formRef = useRef<HTMLFormElement>(null);
+
+  function buildUrl(nextGranularity: SnapshotGranularity) {
+    const params = new URLSearchParams();
+    if (value.preset) params.set("preset", String(value.preset));
+    else {
+      params.set("from", value.from);
+      params.set("to", value.to);
+    }
+    params.set("granularity", nextGranularity);
+    return `/dashboard?${params.toString()}`;
+  }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -21,11 +36,31 @@ export function RangeSelector({ value }: { value: DateRange }) {
     const to = fd.get("to");
     if (from) params.set("from", String(from));
     if (to) params.set("to", String(to));
+    params.set("granularity", granularity);
     navigate(`/dashboard?${params.toString()}`);
   }
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-1.5">
+      <div className="inline-flex items-center rounded-md bg-muted p-0.5" aria-label="图表颗粒度">
+        {SNAPSHOT_GRANULARITY_OPTIONS.map((option) => {
+          const selected = granularity === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => navigate(buildUrl(option.value))}
+              className={cn(
+                "grid h-7 place-items-center rounded-sm px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                selected && "bg-card text-foreground shadow-[0_1px_2px_rgb(0_0_0/4%)]",
+              )}
+              aria-pressed={selected}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
       <div className="inline-flex items-center rounded-md bg-muted p-0.5" aria-label="快捷时间范围">
         {presets.map((preset) => {
           const selected = value.preset === preset;
@@ -33,7 +68,7 @@ export function RangeSelector({ value }: { value: DateRange }) {
             <button
               key={preset}
               type="button"
-              onClick={() => { navigate(`/dashboard?preset=${preset}`); }}
+              onClick={() => { navigate(`/dashboard?preset=${preset}&granularity=${granularity}`); }}
               className={cn(
                 "grid h-7 min-w-11 place-items-center rounded-sm px-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 selected && "bg-card text-foreground shadow-[0_1px_2px_rgb(0_0_0/4%)]",

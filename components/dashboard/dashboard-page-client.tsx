@@ -8,16 +8,20 @@ import { DashboardClient } from "@/components/dashboard/dashboard-client";
 import { StatTiles } from "@/components/dashboard/stat-tiles";
 import { RefreshButton } from "@/components/stars/refresh-button";
 import { RangeSelector } from "@/components/stars/range-selector";
-import { formatSnapshotDate, resolveDateRange } from "@/lib/date-range";
+import { formatSnapshotDate, resolveDateRange, resolveGranularity } from "@/lib/date-range";
 import type { StarDashboardData } from "@/lib/stars";
 
-async function requestDashboard(range: ReturnType<typeof resolveDateRange>) {
+async function requestDashboard(
+  range: ReturnType<typeof resolveDateRange>,
+  granularity: ReturnType<typeof resolveGranularity>,
+) {
   const params = new URLSearchParams();
   if (range.preset) params.set("preset", String(range.preset));
   else {
     params.set("from", range.from);
     params.set("to", range.to);
   }
+  params.set("granularity", granularity);
   const response = await fetch(`/api/stars/dashboard?${params.toString()}`);
   if (!response.ok) {
     const body = await response.json().catch(() => null);
@@ -61,20 +65,21 @@ export function DashboardPageClient() {
   const preset = searchParams.get("preset") ?? undefined;
   const from = searchParams.get("from") ?? undefined;
   const to = searchParams.get("to") ?? undefined;
+  const granularity = useMemo(() => resolveGranularity(searchParams.get("granularity")), [searchParams]);
   const range = useMemo(() => resolveDateRange({ preset, from, to }), [preset, from, to]);
 
   const fetchData = useCallback(async () => {
     setError(null);
     try {
-      setData(await requestDashboard(range));
+      setData(await requestDashboard(range, granularity));
     } catch (err) {
       setError(err instanceof Error ? err.message : "加载失败");
     }
-  }, [range]);
+  }, [granularity, range]);
 
   useEffect(() => {
     let active = true;
-    void requestDashboard(range)
+    void requestDashboard(range, granularity)
       .then((result) => {
         if (active) {
           setData(result);
@@ -85,7 +90,7 @@ export function DashboardPageClient() {
         if (active) setError(requestError instanceof Error ? requestError.message : "加载失败");
       });
     return () => { active = false; };
-  }, [range]);
+  }, [granularity, range]);
 
   if (error) {
     return (
@@ -122,8 +127,8 @@ export function DashboardPageClient() {
             已配置仓库的 Star 趋势与最新快照排行
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <RangeSelector value={range} />
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <RangeSelector value={range} granularity={granularity} />
           <RefreshButton disabled={!data.databaseConfigured} onRefresh={fetchData} />
         </div>
       </div>
@@ -199,6 +204,7 @@ export function DashboardPageClient() {
         chartRepositories={data.chartRepositories}
         leaderboard={data.leaderboard}
         rangeLabel={range.label}
+        granularity={granularity}
       />
     </div>
   );

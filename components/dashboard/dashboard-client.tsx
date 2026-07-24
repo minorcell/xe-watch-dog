@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 
 import { StarTable } from "@/components/stars/star-table";
+import type { SnapshotGranularity } from "@/lib/date-range";
 import type { StarDashboardData } from "@/lib/stars";
 
 const StarChart = dynamic(() => import("@/components/stars/star-chart").then((m) => ({ default: m.StarChart })), {
@@ -22,11 +23,13 @@ export function DashboardClient({
   chartRepositories,
   leaderboard,
   rangeLabel,
+  granularity,
 }: {
   chartData: StarDashboardData["chartData"];
   chartRepositories: string[];
   leaderboard: StarDashboardData["leaderboard"];
   rangeLabel: string;
+  granularity: SnapshotGranularity;
 }) {
   const [query, setQuery] = useState("");
   const [visibility, setVisibility] = useState("all");
@@ -67,6 +70,7 @@ export function DashboardClient({
             data={chartData}
             repositories={chartRepositories}
             visibleRepositories={visibleChartRepos}
+            granularity={granularity}
           />
         </div>
       </section>

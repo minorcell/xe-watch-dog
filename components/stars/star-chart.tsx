@@ -11,6 +11,8 @@ import {
   YAxis,
 } from "recharts";
 
+import type { SnapshotGranularity } from "@/lib/date-range";
+
 function shortName(full: string) {
   return full.includes("/") ? full.split("/").slice(1).join("/") : full;
 }
@@ -24,13 +26,15 @@ const palette = [
 
 type ChartPoint = Record<string, string | number | null>;
 
-function formatDate(value: string) {
+function formatDate(value: string, granularity: SnapshotGranularity) {
+  const options: Intl.DateTimeFormatOptions = granularity === "hour"
+    ? { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }
+    : granularity === "month"
+      ? { year: "numeric", month: "2-digit" }
+      : { month: "2-digit", day: "2-digit" };
   return new Intl.DateTimeFormat("zh-CN", {
     timeZone: "Asia/Shanghai",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
+    ...options,
   }).format(new Date(value));
 }
 
@@ -38,10 +42,12 @@ export function StarChart({
   data,
   repositories,
   visibleRepositories,
+  granularity,
 }: {
   data: ChartPoint[];
   repositories: string[];
   visibleRepositories: string[];
+  granularity: SnapshotGranularity;
 }) {
   const [hiddenRepos, setHiddenRepos] = useState<Set<string>>(new Set());
   const [hoveredRepo, setHoveredRepo] = useState<string | null>(null);
@@ -115,7 +121,7 @@ export function StarChart({
             <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
             <XAxis
               dataKey="capturedAt"
-              tickFormatter={formatDate}
+              tickFormatter={(value) => formatDate(String(value), granularity)}
               axisLine={false}
               tickLine={false}
               tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
@@ -129,7 +135,7 @@ export function StarChart({
               width={38}
             />
             <Tooltip
-              labelFormatter={(value) => `采集于 ${formatDate(String(value))}`}
+              labelFormatter={(value) => `采集于 ${formatDate(String(value), granularity)}`}
               formatter={(value, name) => [Number(value).toLocaleString("zh-CN"), String(name)]}
               contentStyle={{
                 border: "1px solid var(--border)",

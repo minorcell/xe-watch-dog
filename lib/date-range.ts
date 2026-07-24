@@ -1,5 +1,15 @@
 export const DISPLAY_TIME_ZONE = "Asia/Shanghai";
 
+export const SNAPSHOT_GRANULARITIES = ["hour", "day", "week", "month"] as const;
+export type SnapshotGranularity = typeof SNAPSHOT_GRANULARITIES[number];
+
+export const SNAPSHOT_GRANULARITY_OPTIONS: { value: SnapshotGranularity; label: string }[] = [
+  { value: "hour", label: "按小时" },
+  { value: "day", label: "按天" },
+  { value: "week", label: "按周" },
+  { value: "month", label: "按月" },
+];
+
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export type DateRange = {
@@ -57,6 +67,12 @@ export function resolveDateRange(params: { preset?: string; from?: string; to?: 
     label: `最近 ${preset} 天`,
     preset,
   };
+}
+
+export function resolveGranularity(value: string | null | undefined): SnapshotGranularity {
+  return SNAPSHOT_GRANULARITIES.includes(value as SnapshotGranularity)
+    ? value as SnapshotGranularity
+    : "day";
 }
 
 export function getDateRangeDays(range: DateRange) {

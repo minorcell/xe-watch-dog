@@ -5,9 +5,9 @@ import {
   isDatabaseConfigured,
   listMonitoredRepositories,
 } from "@/lib/database";
-import type { DateRange } from "@/lib/date-range";
+import type { DateRange, SnapshotGranularity } from "@/lib/date-range";
 
-export async function getStarDashboardData(range: DateRange) {
+export async function getStarDashboardData(range: DateRange, granularity: SnapshotGranularity = "day") {
   if (!isDatabaseConfigured()) {
     return {
       leaderboard: [],
@@ -23,12 +23,13 @@ export async function getStarDashboardData(range: DateRange) {
       latestRun: null,
       latestSuccessfulRun: null,
       rangeLabel: range.label,
+      granularity,
     };
   }
 
   const [repositories, snapshots, latestSnapshots, latestRun, latestSuccessfulRun] = await Promise.all([
     listMonitoredRepositories(),
-    getMetricSnapshots(range.from, range.to),
+    getMetricSnapshots(range.from, range.to, granularity),
     getLatestMetricSnapshots(),
     getLatestSyncRun(),
     getLatestSyncRun({ completedOnly: true }),
@@ -106,6 +107,7 @@ export async function getStarDashboardData(range: DateRange) {
     latestRun,
     latestSuccessfulRun,
     rangeLabel: range.label,
+    granularity,
   };
 }
 
