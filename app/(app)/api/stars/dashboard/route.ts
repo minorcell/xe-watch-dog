@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getSession } from "@/lib/auth";
-import { resolveDateRange } from "@/lib/date-range";
+import { resolveDateRange, resolveGranularity } from "@/lib/date-range";
 import { getStarDashboardData } from "@/lib/stars";
 
 export async function GET(request: NextRequest) {
@@ -15,7 +15,8 @@ export async function GET(request: NextRequest) {
     from: searchParams.get("from") ?? undefined,
     to: searchParams.get("to") ?? undefined,
   });
+  const granularity = resolveGranularity(searchParams.get("granularity"));
 
-  const data = await getStarDashboardData(range);
+  const data = await getStarDashboardData(range, granularity);
   return NextResponse.json(data);
 }
